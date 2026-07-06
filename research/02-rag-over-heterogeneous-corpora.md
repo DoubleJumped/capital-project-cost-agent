@@ -11,10 +11,13 @@ retrievable form.*
 
 ## TL;DR for this project
 
-- **Our corpus is small (~200 projects, plausibly 1,000–5,000 documents).** This is *below* every
-  practitioner threshold where GraphRAG earns its complexity. GraphRAG/knowledge-graph indexing is
-  designed for 100k+ document, global-synthesis workloads; at our scale it adds cost, latency, and a
-  brittle construction step for marginal gain [1][6][9]. **Recommendation: do not build a full
+- **Our corpus is small (~200 projects, plausibly 1,000–5,000 documents).** This is well below the scale
+  where GraphRAG earns its complexity. A practitioner heuristic puts its payoff around 100k+ documents with
+  regular multi-hop/global needs [1] — treat that round number as a rule of thumb, not a hard threshold.
+  The qualitative case is stronger and independently supported: the systematic RAG-vs-GraphRAG evaluation
+  found GraphRAG's brutal construction cost and its losses on single-hop/factual/null queries make it a poor
+  fit for small, comparable-finding workloads like ours [6]. At our scale a graph adds cost, latency, and a
+  brittle construction step for marginal gain [6][9]. **Recommendation: do not build a full
   Microsoft-style GraphRAG. Build hybrid retrieval + a curated per-project knowledge base.**
 - **The highest-leverage retrieval upgrade is boring and cheap:** BM25 (keyword) + dense vectors +
   a cross-encoder reranker. The most rigorous measurement is Anthropic's Contextual Retrieval:
@@ -34,8 +37,9 @@ retrievable form.*
   project schema — cost line items, station size, greenfield/brownfield, season, weather delays [2][5].
 - **Missing/inconsistent data is the norm, not the exception.** Model every field as explicitly
   nullable with a provenance and confidence tag. Route low-confidence and null-critical extractions to a
-  human validation queue — studies show humans confirm the LLM ~87% of the time on low-confidence cases,
-  so review effort concentrates where it pays [12].
+  human validation queue so review effort concentrates where it pays. (One *medical* systematic-review study
+  found humans confirmed the LLM ~87% of the time on low-confidence cases [12] — an illustrative analogue, not
+  a number to design against; gas-utility cost extraction has a different domain and error profile.)
 - **Net architecture:** parse → schema extraction with provenance → curated per-project "project card"
   (the LLM-legible unit) → hybrid retrieval + reranking over cards and their source chunks → agentic
   navigation for the estimate. Graph edges (only if ever) should be a thin, hand-designed layer over the
@@ -80,9 +84,32 @@ accuracy on supported types, ~95%+ on typical enterprise deployments, ~$10 per 1
 SaskEnergy-like shop already on Azure, this is a credible managed path that avoids self-hosting Docling.
 Forrester notes table extraction is *the* differentiator: AI parsers hit 90%+ vs ~60% for template OCR [10].
 
-**Design stance:** default **Docling** (or Azure DI if we standardize on Azure), with a **vision-LLM
-fallback** triggered when Docling confidence is low or the artifact is a scan/drawing. Always keep the
-parsed markdown *and* page/coordinate anchors so downstream extraction can cite exact source locations.
+**Native spreadsheets — do not round-trip through PDF.** Many era-varying cost reports and cost breakdowns
+are almost certainly *native `.xlsx`/`.xls`* (or `.csv`), not PDFs. The whole "parse a table out of a PDF"
+problem is self-inflicted if the source is already a spreadsheet: read cells, formulas, sheet names, and
+named ranges directly (openpyxl / pandas, or a structure-preserving converter), which is far more reliable
+than OCR-ing an Excel-exported PDF and re-detecting the grid. Route native spreadsheets down a dedicated
+ingestion path that preserves cell coordinates (sheet + A1 reference) as the provenance anchor, and reserve
+the Docling/vision pipeline for artifacts that only exist as PDF or scan. Triage the corpus by original file
+type *first*.
+
+**Design stance:** default **Docling** (or Azure DI if we standardize on Azure) for PDFs, a **native
+spreadsheet reader** for `.xlsx`/`.csv`, and a **vision-LLM fallback** triggered when Docling confidence is
+low or the artifact is a scan/drawing. Always keep the parsed markdown *and* page/coordinate (or cell)
+anchors so downstream extraction can cite exact source locations.
+
+**Alternative worth piloting — visual retrieval that skips OCR entirely (ColPali / ColQwen).** The
+parse-then-embed pipeline above assumes we first convert every page to text. **ColPali (arXiv 2407.01449)**
+and its successors (ColQwen2/ColQwen3) take a different route: a vision-language model produces multi-vector
+embeddings *directly from page images* and matches queries with a ColBERT-style late-interaction mechanism —
+no OCR, no layout parsing. It captures information carried by figures, tables, layout, and fonts that text
+extraction discards, and on the ViDoRe benchmark it outperforms strong parse-then-embed pipelines while
+being simpler and end-to-end. For our **drawing- and scan-heavy legacy corpus**, this is a serious
+alternative-or-complement for the *retrieval* layer specifically: it could retrieve the right station
+drawing or scanned cost page without a brittle OCR step. Caveats: multi-vector image embeddings are storage-
+and compute-heavier, and it retrieves pages, not structured fields — so we would still need extraction (§2)
+to pull comparable cost attributes. Recommendation: pilot ColPali/ColQwen retrieval on a scan-heavy slice and
+compare Recall@k against the Docling-parsed hybrid pipeline before committing either way.
 
 ## 2. Structured extraction: from parsed text to a project schema
 
@@ -101,9 +128,14 @@ extraction with source grounding**.
   multi-model support (Gemini/OpenAI/Ollama) [5]. Source grounding is the killer feature for us: an
   estimate that cites "$1.2M mainline steel, from Project X final cost report p.14" is *defensible*; a
   number with no provenance is not.
-- **Schema optimization research (PARSE, 2025)** shows LLM-driven schema refinement improves entity
-  extraction reliability — worth knowing if our first hand-designed schema underperforms, but likely
-  overkill for a fixed, well-understood cost schema.
+- **PARSE (arXiv 2510.08623, 2025)** is more relevant than it first looks. It has two parts: ARCHITECT,
+  which auto-refines JSON schemas for LLM comprehension (that half *is* largely overkill for our fixed,
+  well-understood cost schema), and **SCOPE — reflection-based extraction with combined static and
+  LLM-based guardrails, reported to cut extraction errors by 92% within the first retry** [16]. SCOPE targets
+  exactly our hardest problem: messy, nullable, era-varying fields where a single-shot extraction quietly
+  emits a wrong or hallucinated value. A reflect-and-retry guardrail (validate the extracted JSON against
+  static rules — units, ranges, WBS vocabulary — plus an LLM self-check, then re-extract failures) is worth
+  building into the extraction loop, independent of whether we adopt ARCHITECT's schema optimization.
 
 **Handling missing / inconsistent data (this is central for us).** Some projects lack a lessons-learned
 report; older cost reports use different line-item taxonomies; "station size" may be recorded as MMSCFD,
@@ -115,10 +147,12 @@ inlet pressure, or physical footprint depending on era. Recommendations:
    cost line items onto a canonical WBS). This is where most of the messy-corpus work actually lives.
 3. **Confidence-routed human validation.** Extract with confidence scoring (self-consistency: run
    extraction multiple times and score agreement; or multi-model cross-validation). High-agreement →
-   auto-accept; middling → human queue; low/contradictory → mandatory expert review [12]. In systematic-
-   review studies, **humans confirmed the LLM's low-confidence extraction ~87% of the time**, and
-   two-tier (multi-model → expert) routing concentrates scarce engineer attention on genuinely ambiguous
-   cases [12]. For 200 projects this is a one-time curation effort, entirely feasible.
+   auto-accept; middling → human queue; low/contradictory → mandatory expert review. Two-tier
+   (multi-model → expert) routing concentrates scarce engineer attention on genuinely ambiguous
+   cases. One *medical* systematic-review paper reported **humans confirmed the LLM's low-confidence
+   extraction ~87% of the time** [12]; cite it only as a rough analogue — the domain and error profile of
+   cost-report extraction differ, so re-measure the confirmation rate on our own data before relying on it.
+   For 200 projects this is a one-time curation effort, entirely feasible.
 
 ## 3. Chunking: not the main event, but get it right
 
@@ -130,8 +164,8 @@ matters for long DBMs and cost reports.
   boundaries better than fixed windows.
 - **Anthropic's Contextual Retrieval (Sept 2024):** prepend an LLM-generated blurb situating each chunk in
   its parent document before embedding. This preserves cross-chunk context (e.g. a cost line that only
-  makes sense given the project it belongs to) at the cost of extra LLM calls at index time [chunking
-  guide]. Very relevant for us — a bare "$430,000" chunk is useless without "…for Project Y horizontal
+  makes sense given the project it belongs to) at the cost of extra LLM calls at index time; Anthropic
+  measured 49% fewer failed retrievals from this alone, 67% with reranking [14]. Very relevant for us — a bare "$430,000" chunk is useless without "…for Project Y horizontal
   directional drilling."
 - **Late chunking** (embed the whole doc with a long-context embedder, then pool per-chunk) is cheaper and
   keeps long-distance dependencies but tends to sacrifice some relevance/completeness [Late Chunking paper].
@@ -148,10 +182,23 @@ reranking**, and it needs no graph.
 - **Hybrid = BM25 (sparse/keyword) ∪ dense (vector), fused (RRF), then reranked by a cross-encoder**, top-k
   to the LLM [4]. Sparse catches exact terms (station IDs, part numbers, WBS codes) that embeddings miss;
   dense catches paraphrase/semantic scope similarity; the reranker fixes ordering.
-- **Measured gains:** a production cascade (BM25 + FAISS + cross-encoder) reported **+48% accuracy**;
-  a two-stage hybrid→neural-rerank hit **Recall@5 0.816 vs 0.695 for RRF-only (+17%), 0.644 BM25 (+27%),
-  0.587 dense (+39%)**; on WANDS, tuned hybrid gave **+7.4% NDCG** over either method alone [4]. As one practitioner writeup
+- **Measured gains (anchor):** Anthropic's Contextual Retrieval study — a controlled, well-documented
+  evaluation — cut top-20 retrieval failures by **49%** (contextual embeddings + contextual BM25) and by
+  **67%** once a reranker was added [14]. Treat this as the trustworthy number.
+- **Measured gains (blog-reported, directional):** a production cascade (BM25 + FAISS + cross-encoder) reported
+  **+48% accuracy**; a two-stage hybrid→neural-rerank hit **Recall@5 0.816 vs 0.695 for RRF-only (+17%),
+  0.644 BM25 (+27%), 0.587 dense (+39%)**; on WANDS, tuned hybrid gave **+7.4% NDCG** over either method
+  alone [4]. These are non-peer-reviewed and span a wide **+17–48%** band — use directionally, not as targets. As one practitioner writeup
   puts it, *"a two-week reranking project saved them a six-month migration"* [13].
+- **Concrete model picks (not just "a cross-encoder").** For the **reranker**, the 2025–26 production
+  choices are **Cohere Rerank 3.5** (managed API, strong on business/technical text, ~600ms latency) or a
+  self-hostable open weight — **bge-reranker-v2-m3** (multilingual, best quality/latency/license default) or
+  **Qwen3-Reranker**. For a shop with an Azure/compliance story, self-hostable bge-reranker-v2-m3 avoids
+  sending cost data to a third-party API; Cohere is the fastest managed path. For **embeddings**, pick a
+  current top-tier retrieval model — **Voyage voyage-3 / voyage-3-large**, **OpenAI text-embedding-3-large**,
+  **Cohere embed-v3**, or self-hostable **BGE-M3 / Qwen3-Embedding** — and, per the Anthropic result, layer
+  contextual-retrieval blurbs (§3) on top rather than chasing a marginally better base embedder. Whichever we
+  pick, re-benchmark on our own cost reports (see §8), since leaderboards do not reflect gas-utility text.
 - **Metadata filtering is free precision.** Because we control extraction, we can hard-filter candidates by
   structured attributes *before* semantic ranking — e.g. only greenfield stations, only winter builds, only
   >X MMSCFD. This is often more valuable than any fancier retrieval, and directly serves the
@@ -172,8 +219,10 @@ communities, pre-summarize them, then answer global queries by aggregating commu
   GraphRAG 80.1% on null queries) [6]. Construction is brutally expensive: in the same study GraphRAG
   variants took **5,560–7,700s to construct vs 135s for RAG** [6]. Quality is **highly sensitive to
   graph-construction LLM quality** (GPT-4o 75% vs GPT-4o-mini 71%) and to graph *completeness* — in one KG,
-  only **65.8% of answer entities even existed in the graph**, capping accuracy [6]. Practitioner thresholds
-  put GraphRAG's payoff at **100k+ documents with regular multi-hop/global needs** [1][9].
+  only **65.8% of answer entities even existed in the graph**, capping accuracy [6]. A practitioner
+  heuristic (personal blog, not an empirical study) puts GraphRAG's payoff around **100k+ documents with
+  regular multi-hop/global needs** [1]; the qualitative construction-cost and query-mix arguments in the
+  peer evaluation [6] are the load-bearing reason, not the round number.
 - **Cost trend:** the ecosystem has attacked the cost. **LazyGraphRAG (Microsoft; public preview,
   integrated into Azure Local + Microsoft Discovery as of mid-2025 — not yet GA)** defers all
   LLM summarization to query time, giving **indexing cost identical to vector RAG (0.1% of full GraphRAG)**
@@ -232,10 +281,20 @@ not thousands of raw chunks.
    normalization onto a canonical WBS. *Tradeoff:* schema-first is more upfront design work but yields
    comparable, citable attributes — the whole point of the system.
 3. **Curate project cards (the "LLM wiki"):** distill each project into a compact structured card; this is
-   the primary retrieval/reasoning unit and the artifact humans validate. *Tradeoff:* one-time curation
-   effort for 200 projects vs. durable, explainable, low-token retrieval forever after.
-4. **Retrieval:** hybrid (BM25 + dense) + cross-encoder rerank + **metadata pre-filtering** on structured
-   attributes, over both cards and raw-source chunks. Skip GraphRAG. *Tradeoff:* forgo global-synthesis
+   the primary retrieval/reasoning unit and the artifact humans validate. *Tradeoff / real cons, not just
+   upside:* (a) **information loss from distillation** — a card is a lossy summary, and the one caveat it
+   drops ("this $2M overrun was a one-off frost-heave remediation, do not treat as typical") can be the
+   load-bearing fact in a cost defense; mitigate by always linking the card back to source spans and letting
+   the agent open the raw evidence, never treating the card as the final word. (b) **Staleness** — cards
+   are a derived layer that silently drifts from source as extraction logic, the WBS mapping, or the
+   underlying documents change; they need versioning and a rebuild trigger. (c) **Unassigned maintenance
+   ownership** — a curated knowledge base with no named owner rots; someone must own re-curation when new
+   projects land or the schema evolves. Weigh these against the durable, explainable, low-token retrieval
+   the cards buy — the payoff is real but conditional on owning the maintenance.
+4. **Retrieval:** hybrid (BM25 + dense, e.g. **BGE-M3** or **Voyage voyage-3** embeddings) +
+   cross-encoder rerank (**bge-reranker-v2-m3** self-hosted, or **Cohere Rerank 3.5** managed) +
+   **metadata pre-filtering** on structured attributes, over both cards and raw-source chunks. Skip GraphRAG.
+   *Tradeoff:* forgo global-synthesis
    graph queries — acceptable, since our task is comparable-finding, not corpus-wide theme mining. If
    global synthesis is ever needed, add **LazyGraphRAG** (vector-RAG-level index cost) rather than full
    GraphRAG.
@@ -249,7 +308,8 @@ not thousands of raw chunks.
    same-region, brownfield-successor) to power comparable discovery — curated, not auto-extracted.
 
 **What to explicitly *not* build:** full Microsoft GraphRAG entity-graph indexing (wrong scale), pure
-vector-only RAG without reranking (leaves 15–48% accuracy on the table), and any pipeline that silently
+vector-only RAG without reranking (Anthropic measured up to 67% fewer failed retrievals once hybrid +
+reranking is added [14]), and any pipeline that silently
 imputes missing fields (destroys defensibility). 
 
 **Key risks / unverified items to flag:** vendor self-benchmarks (Unstructured's 0.844 table score;
@@ -258,11 +318,47 @@ cost reports before commitment. The Docling 97.9% figure comes from a third-part
 sustainability reports, not gas-utility cost reports — validate on our own sample. The specific engineering-
 drawing model rankings (GPT-4o-mini > GPT-4o) come from one benchmark and may not generalize.
 
+## 8. Evaluation: how we validate this on *our* corpus
+
+The doc repeatedly says "re-benchmark on our own cost reports" — here is the concrete method so the
+recommendation is actionable rather than a slogan. Build the eval harness *before* the pipeline, because
+every model/parser/reranker choice above should be decided by these numbers, not by vendor leaderboards.
+
+**1. Golden set (the one-time investment).** With an estimator, hand-build a labelled set from a
+representative slice of the ~200 projects:
+- **Golden query/answer set (~30–50 items):** realistic natural-language scope queries ("greenfield 10
+  MMSCFD delivery station, winter build") paired with (a) the *correct comparable projects* an expert would
+  cite and (b) the *right cost figures with their source location*. This is the retrieval + end-to-end truth.
+- **Golden extraction set (~20–30 projects):** for each, the fully hand-verified project schema — every
+  field's correct value, `null` where genuinely absent, and its source span. This is the extraction truth.
+
+**2. Retrieval metrics.** Over the golden queries, measure **Recall@k** (are the expert's comparables in the
+top-k?) and **NDCG@k** (are they ranked well?). Run the ablation the doc keeps asserting: dense-only vs
+BM25-only vs hybrid vs hybrid+rerank, and each candidate embedder/reranker from §4, on *our* text — adopt
+whichever actually wins here. Also test **metadata-filtered vs unfiltered** to confirm pre-filtering's value.
+
+**3. Extraction metrics.** Over the golden extraction set, report **per-field accuracy / precision / recall**,
+and critically a **null-handling score** (does the system correctly emit `null` for absent fields instead of
+imputing or hallucinating a value?) — the false-value rate is the metric that most threatens defensibility.
+Track it per field so we know which schema fields are reliable. This is also where the PARSE/SCOPE
+reflect-and-retry loop (§2) should be measured: error rate before vs after the guardrail.
+
+**4. End-to-end faithfulness / groundedness.** For the full estimate, use a **RAGAS-style LLM-judge** on
+faithfulness (is every claim in the estimate supported by a cited source?), answer relevance, and context
+precision/recall — but calibrate the judge against a handful of human ratings first, since LLM judges drift.
+The defensibility bar is that **every number in an estimate traces to a real cited span**; measure the rate
+of unsupported or mis-cited figures directly.
+
+**5. Regression + cost/latency.** Re-run the golden set on every pipeline change (new parser, new embedder,
+re-curated cards) to catch regressions, and log per-estimate token cost and latency so quality gains are
+weighed against operating cost. Re-measure the human-confirmation rate (§2) on our own review queue rather
+than inheriting the 87% medical-study figure.
+
 ---
 
 ## Sources
 
-1. [GraphRAG vs. RAG: When Knowledge Graphs Earn Their Complexity](https://aloknecessary.github.io/blogs/graph-rag-vs-rag/) and search-synthesized practitioner consensus — thresholds for GraphRAG (100k+ docs), the +15–25% hybrid+rerank gain, LightRAG/LazyGraphRAG cost points, "two-week reranking vs six-month migration."
+1. [GraphRAG vs. RAG: When Knowledge Graphs Earn Their Complexity](https://aloknecessary.github.io/blogs/graph-rag-vs-rag/) — personal practitioner blog; source of the qualitative **~100k+ document GraphRAG break-even heuristic** (treated in-text as a rule of thumb, not an empirical threshold) and LightRAG/LazyGraphRAG cost-point context.
 2. [Structured data extraction from unstructured content using LLM schemas — Simon Willison](https://simonwillison.net/2025/Feb/28/llm-schemas/) — schema/function-calling enforced structured output turning PDFs/screenshots into typed JSON.
 3. [PDF Data Extraction Benchmark 2025: Docling vs Unstructured vs LlamaParse — Procycons](https://procycons.com/en/blogs/pdf-data-extraction-benchmark/) — table accuracy (Docling 97.9%/94%+, Unstructured 100% simple / 75% complex, LlamaParse fails complex), speed numbers, per-tool pros/cons and recommendations.
 4. [Hybrid Retrieval and Reranking in RAG — Genzeon](https://www.genzeon.com/hybrid-retrieval-deranking-in-rag-recall-precision/) plus [Better RAG Accuracy with Hybrid BM25 + Dense — Medium](https://medium.com/@pbronck/better-rag-accuracy-with-hybrid-bm25-dense-vector-search-ea99d48cba93) — hybrid+cross-encoder gains (+17–48%, Recall@5 and NDCG figures), standard production pipeline.

@@ -33,13 +33,18 @@ literature — and what lessons transfer to our ~200-project gas-utility estimat
 - **Realistic accuracy is ~10–15% error early-stage, and that already matches AACE expectations.**
   Class 5/4 concept estimates carry −50%/+100% to −30%/+50% *by definition* [14]. We should not
   promise point precision; we should promise well-calibrated *ranges* and cited comparables.
-- **Explainability is the adoption gate, not accuracy.** Only ~12% of estimators report strong
-  confidence in estimation tools, and black-box outputs *erode* credibility in regulated
-  industries [18][19]. Our cite-the-evidence design is not a nice-to-have — it is the single biggest
-  differentiator versus every incumbent.
-- **Data quality kills ~40% of these projects** [19]. Our heterogeneous, partly-missing corpus is the
-  central risk. Budget most effort for the ingestion/normalization layer (the "wiki" distillation),
-  not the model.
+- **Explainability is the adoption gate, not accuracy.** Adoption is surging but confidence is not:
+  Galorath's 2026 State of the Industry survey (220 professionals) found **79% of orgs increased AI
+  spend** and **60% are piloting AI**, yet only ~12% of *leaders* (and ~20% of practitioners) report
+  being "very confident" in their estimating process, and only ~24% have documented AI policies [21].
+  Black-box outputs *erode* credibility in regulated industries [18]. Our cite-the-evidence design is
+  not a nice-to-have — it is the single biggest differentiator versus *legacy* incumbents (though no
+  longer versus SEERai; see §5.5).
+- **Data quality is the dominant failure cause.** Galorath is blunt that "AI applied to fragmented
+  data simply automates flawed assumptions," and integration/data problems (56% run only
+  partially-integrated systems, 47% cite inaccurate forecast data) are the recurring theme in the
+  adoption literature [18]. Our heterogeneous, partly-missing corpus is the central risk. Budget most
+  effort for the ingestion/normalization layer (the "wiki" distillation), not the model.
 - **Build-vs-buy leans build for the reasoning layer, buy for commodity pieces.** No vendor ingests
   *your* DBMs and cites them. But don't rebuild takeoff CV or a parametric benchmarking DB from
   scratch if a station-cost regression already suffices.
@@ -63,7 +68,10 @@ read PDF/BIM drawings and auto-count rooms, walls, doors, and fixtures.
 
 A February 2026 independent test of six tools (InEight, Togal, Procore, STACK, Kreo, Beam) is the most
 useful evidence here [4]: **InEight Estimate hit 1.8% error** against a ground-truth baseline (best of
-the six); Procore landed within ~4%, STACK within ~3%, Beam had the second-lowest miss rate. Crucially:
+the six); Procore landed within ~4%, STACK within ~3%, Beam had the second-lowest miss rate. (Note
+InEight Estimate is not a pure CV-takeoff engine — it is the parametric/historical-DB estimating suite
+covered in §1.2; it appears in this six-tool takeoff test but sits in the parametric camp, which is
+partly why it topped the accuracy ranking.) Crucially:
 **every tool required human validation, and all degraded on hand-sketched plans, heavy-civil
 cross-sections, and non-standard symbols.**
 
@@ -85,6 +93,12 @@ These are the tools a utility cost engineer already knows:
   estimating with BIM/quantity integration [17].
 - **CostOS** (Nomitech) — 5D BIM conceptual-to-detailed estimating and benchmarking [17].
 - **RIB Candy** — estimating, QTO, planning, cash-flow for civil/build.
+- **SEER** (Galorath) — the flagship *parametric* estimating family (SEER-H hardware, SEER-SEM
+  software, etc.), a longstanding incumbent used across NASA/DoD/aerospace/manufacturing for
+  cost/schedule/risk models built from validated historical data and CERs [20]. Omitting it would be
+  a conspicuous gap: Galorath is the single most estimation-focused vendor here, and — unlike the
+  suites above — it has now layered an agentic, natural-language front end on top (**SEERai**, Oct
+  2025; see §5.5), making it the closest commercial analog to what we propose [20].
 
 Their "AI" today is mostly **outlier flagging and benchmarking against a normalized historical
 database** — valuable but conventional. None of them, as far as public materials show, ingest
@@ -101,7 +115,7 @@ not.
 ### 1.3 nPlan — the closest "learn from historicals" precedent (but schedule, not cost)
 
 **nPlan** trains deep-learning **graph neural networks** on the largest known corpus of construction
-schedules — **750,000+ historical schedules, >2 million years of construction time** — to forecast
+schedules — **750,000+ historical schedules representing ~$2 trillion+ of capital spend** — to forecast
 activity-level durations and risk, and to flag where a schedule will "snowball" [1][2]. It explicitly
 positions itself *against* manual Reference Class Forecasting: automate the outside view at activity
 granularity. Deployed on £11B+ infrastructure portfolios.
@@ -168,6 +182,26 @@ cut error **>50% versus traditional methods**; a green-building study reported *
 - **Interpretability is a named limitation**: only ~23% of professionals claim to understand DNN
   logic [7]. This is a recurring theme (see §4).
 
+### 2.4 Case-Based Reasoning — the formal academic name for our analogical approach
+
+Before RCF (§3) there is a decades-old, formally-named precedent that is *conceptually closer to our
+design than anything else in this chapter*: **Case-Based Reasoning (CBR)**. CBR solves a new problem by
+**retrieving the most similar past cases, then adapting their solutions** — the classic
+retrieve/reuse/revise/retain cycle — and it has an extensive construction-cost-estimation literature
+[22]. The typical CBR estimator represents each past project as an attribute vector, computes a
+weighted similarity score against the new project, retrieves the closest cases, and adjusts for
+differences (e.g. market-price drift via exponential smoothing, or attribute weights tuned by a
+genetic algorithm) [22]. Crucially, it is **inherently explainable**: the estimator can point at *which
+past projects* drove the number and audit the cost composition item-by-item.
+
+That is almost exactly our proposed loop — "describe a new scope → retrieve comparable historical
+projects → produce an adjusted, cited estimate" — with the LLM taking over the similarity/retrieval and
+adaptation steps that CBR traditionally did with hand-tuned distance metrics. **Design implication:** we
+should frame the agent as *LLM-augmented CBR feeding an RCF-style outside view*, and borrow CBR's
+discipline — an explicit feature/attribute representation per case and a defensible similarity function
+— rather than letting the LLM match on free-form vibes alone (see the precision risk in §5.2). CBR is
+the missing bridge between the ML ensembles above and the RCF doctrine below.
+
 ---
 
 ## 3. Government & institutional doctrine: the defensibility playbook
@@ -205,13 +239,17 @@ The failure literature is remarkably consistent, and it is *organizational*, not
 
 - **The adoption paradox**: 87% of contractors think AI will meaningfully affect the industry, but
   only ~4% use it [19]. Tools that estimators don't trust "sit unused and never pay back."
-- **Data quality derails ~40% of construction AI implementations** [19]. Galorath's postmortem [18]
-  is blunt: "AI applied to fragmented data simply automates flawed assumptions." 56% of orgs run
-  partially-integrated systems, 47% cite inaccurate forecast data as a top challenge.
-- **Explainability is the trust gate**: only ~12% of professionals report strong confidence in
-  estimation accuracy; **"black-box AI erodes rather than builds credibility"** and regulated
-  industries "require auditable, defensible estimates… traceable assumptions and audit-ready
-  outputs" [18]. This is the single most important lesson for us.
+- **Data quality is the leading derailer.** (A frequently-cited "~40% of construction AI
+  implementations fail on data quality" figure [19] circulates in trade press but I could not trace it
+  to a primary source — treat as directional, not exact.) The better-sourced picture: Galorath's
+  postmortem [18] is blunt that "AI applied to fragmented data simply automates flawed assumptions,"
+  and its 2026 survey finds **56% of orgs run only partially-integrated systems** and **47% cite
+  inaccurate forecast data** as a top challenge [18][21].
+- **Explainability is the trust gate**: despite surging adoption, only **~12% of estimating *leaders*
+  (and ~20% of practitioners) report being "very confident"** in their estimating process [21];
+  **"black-box AI erodes rather than builds credibility"** and regulated industries "require auditable,
+  defensible estimates… traceable assumptions and audit-ready outputs" [18]. This is the single most
+  important lesson for us.
 - **Ownership & integration**: pilots die when they sit isolated from ERP/financial systems and no one
   owns them [18]. Continuous-modeling orgs are 2.5x more likely to stay within budget [18] — static
   one-shot models rot.
@@ -238,30 +276,54 @@ produces the point-and-range CER, with **SHAP for per-driver attribution** [8].
   Con: LLMs are weak, un-calibrated numeric predictors and can't give defensible intervals. Use the
   LLM for reasoning + retrieval, the ensemble for the number.
 - *Alternative considered:* nPlan-style GNN. Con: needs 10³–10⁵ examples we don't have. Rejected.
+- *Known failure mode (the big con of leaning on the LLM for comparable-selection):* LLMs are
+  documented to be **high-recall / low-precision analogical reasoners** — experimental evidence
+  finds GPT-4 "retrieves all plausible analogies but suffers from low precision, frequently applying
+  incorrect analogies based on superficial similarities," whereas humans show the opposite
+  (fewer analogies, stronger causal alignment) [23]. For *defensible* comparable-selection this is a
+  direct risk: the agent may confidently cite a superficially-similar-but-wrong project. Mitigation:
+  don't let the LLM free-associate. **Constrain/feature-gate retrieval** — pre-filter the candidate
+  reference class on hard structured attributes (station size band, greenfield/brownfield, region,
+  era, season) as CBR does (§2.4), then let the LLM rank and justify *within* that gated set, and
+  surface the retrieved candidates for human override (§5.6). Treat the LLM as a broad analogy
+  *generator* with a human/feature-based *evaluator*, per the same research [23].
 
 **5.3 Invest most engineering in the ingestion/distillation layer (the "LLM wiki").**
 Data quality is the #1 failure cause [18][19] and our corpus is the worst case (heterogeneous, era-
 varying, partly missing). Distill each project into a normalized, LLM-legible record — scope summary,
 cost breakdown by component (mirror the pipeline material/labor/misc/ROW split [11]), complexity tags,
-season, weather-delay narrative, lessons-learned — *before* any estimation. This is the Karpathy
-"curated agent memory" idea and it is where the value is, not in the model.
+season, weather-delay narrative, lessons-learned — *before* any estimation. This is Karpathy's
+"LLM wiki" / curated-agent-memory idea [24]: instead of RAG over raw artifacts on demand, *compile*
+the corpus over time into LLM-maintained markdown knowledge pages the agent reads. That is where the
+value is, not in the model.
 
 **5.4 Never output a bare number — output a calibrated range tied to an AACE class.**
 Bind the width to scope-definition level [14] and to the empirical spread of the reference class
 (fat-tailed, so report P50/P80, not mean ± symmetric σ) [12]. Widening ranges when comparables are
 few or dissimilar is a feature, not a weakness.
 
-**5.5 Cite everything; make the evidence chain the product.**
+**5.5 Cite everything; make the evidence chain the product — but know it is table stakes now, not a moat.**
 Every estimate must name its comparable projects and quote the source artifacts. This directly answers
-the #1 adoption blocker — auditability [18] — and is what no incumbent does. It is our moat.
+the #1 adoption blocker — auditability [18]. Reframe the claim honestly, though: auditability is a
+differentiator versus **legacy** suites (Cleopatra/CostOS/RIB, whose "AI" is outlier flagging), but it
+is **no longer unique** — SEERai already advertises audit-ready outputs with full source traceability
+[20]. So cited evidence is *table stakes that the legacy incumbents lack*, not a defensible moat. Our
+actual defensibility has to come from what SEERai does *not* have: depth on **this utility's own
+heterogeneous DBM/lessons-learned corpus** — the prose ingestion, the utility-specific feature model,
+and the province-specific comparables — plus tighter human-in-the-loop override on comparable
+selection.
 
 **5.6 Position as estimator-assist with human override, and design for continuous refresh.**
 Counters resistance and the "static model rots" failure [18][19]. Log every override to improve the
 knowledge base — a feedback loop, not a one-shot deploy.
 
 **5.7 Build-vs-buy checklist.**
-- *Buy/borrow:* parametric benchmarking storage (Cleopatra/InEight-style) if already licensed; any
-  existing station-cost regressions; standard SHAP/GBT libraries.
+- *Buy/borrow:* parametric benchmarking storage (Cleopatra/InEight/SEER-style) if already licensed;
+  any existing station-cost regressions; standard SHAP/GBT libraries; and **external benchmark/
+  normalization data** — **RSMeans/Gordian** unit-cost databases for commodity line items and cost
+  indices, and, for gas-utility-specific benchmarking, **FERC Form 2** (regulated pipeline/plant cost
+  filings) and **EIA** pipeline construction-cost data — to sanity-check and inflation-normalize our
+  ~200 historicals against an outside baseline rather than relying on the internal corpus alone.
 - *Build:* the prose-ingestion "wiki" distiller, the LLM analogical-retrieval + reasoning layer, and
   the cited-evidence estimate report. **No vendor does these over *your* DBMs** — confirmed gap.
 - *Check before building:* (1) Does an incumbent suite already hold normalized historicals we can read
@@ -275,7 +337,7 @@ knowledge base — a feedback loop, not a one-shot deploy.
 ## Sources
 
 1. [nPlan Review — DataDrivenAEC](https://datadrivenaec.com/tools/nplan) — nPlan uses deep learning + GNNs on 750k+ schedules; forecasts schedule/delay not cost; accuracy vendor-claimed, no third-party benchmark; trains on client data with permission.
-2. [nPlan official site](https://www.nplan.io/) and [AEC Magazine AI directory](https://aidirectory.aecmag.com/entry/nplan/) — 750,000+ schedules / >2M construction-years; activity-level risk forecasting; positioned vs reference class forecasting; £11B+ portfolios.
+2. [nPlan — Our AI](https://www.nplan.io/our-ai) and [AEC Magazine AI directory](https://aidirectory.aecmag.com/entry/nplan/) — nPlan trains on ">750,000 programme files," the largest as-planned/as-built construction dataset, representing ~$2 trillion+ of capital spend; activity-level risk forecasting; positioned vs reference class forecasting; £11B+ portfolios. (The earlier draft's ">2 million construction-years" was not sourceable on nPlan's materials and has been replaced with the schedules/spend figures.)
 3. [Best AI Construction Estimating Software 2026 — Dan Cumberland Labs](https://dancumberlandlabs.com/blog/ai-construction-estimating-software/) and [Construction Placements 2026 list](https://www.constructionplacements.com/best-ai-estimating-software-construction/) — Togal/Kreo/Handoff/STACK feature and pricing landscape; CV takeoff focus.
 4. [6 AI estimating tools tested on complex projects (Feb 2026) — Robotics & Automation News](https://roboticsandautomationnews.com/2026/02/19/6-ai-construction-estimating-software-tested-on-complex-project-accuracy/98967/) — InEight 1.8% error (best), Procore ~4%, STACK ~3%, Beam second; all needed human validation; all failed on hand-sketched/heavy-civil/non-standard.
 5. [Handoff AI — 6 best AI estimating tools](https://handoff.ai/blog/6-best-ai-construction-estimating-software-2026-picks-compared) — Handoff trained on 100k+ residential projects + 60M SKUs, claims within $100 on residential (vendor-reported, residential-only).
@@ -292,4 +354,9 @@ knowledge base — a feedback loop, not a one-shot deploy.
 16. [Joint Agency CER Development Handbook (NCCA/Tecolote)](https://www.asafm.army.mil/Portals/72/Documents/Offices/CE/CER%20Developement%20Handbook.pdf) and [DOD Cost Estimating Guide](https://www.govinfo.gov/content/pkg/GOVPUB-D-PURL-gpo156710/pdf/GOVPUB-D-PURL-gpo156710.pdf) — CERs as statistical cost-vs-driver equations; parametric/analogous doctrine.
 17. [CostOS vs Cleopatra benchmarking — Nomitech](https://www.nomitech.com/benchmarking/best-construction-cost-benchmarking-software-enterprise) and [Cleopatra Enterprise — Software Advice](https://www.softwareadvice.com/construction/cleopatra-enterprise-profile/) — incumbent parametric/benchmarking suites for capital-intensive/energy projects; AI features limited to outlier/risk flagging (generative-from-prose feature unverified).
 18. [Five AI Adoption Mistakes Holding Back Cost Estimation — Galorath](https://galorath.com/blog/ai-mistakes-in-cost-estimation/) — fragmented data automates flawed assumptions; only 12% confident in estimates; regulated industries need auditable/traceable outputs; continuous modeling 2.5x more likely within budget.
-19. [AI in Construction Estimating adoption barriers — Profound Estimates](https://profoundestimates.com/future/ai-in-construction-estimating-how-artificial-intelligence-will-reshape-cost-forecasting-by-2030) and [McCormick Systems](https://www.mccormicksys.com/blog/should-construction-estimators-be-concerned-about-ai-in-estimating/) — 87% believe AI matters / only ~4% use it; data quality derails ~40%; estimator resistance and black-box accountability as key barriers.
+19. [AI in Construction Estimating adoption barriers — Profound Estimates](https://profoundestimates.com/future/ai-in-construction-estimating-how-artificial-intelligence-will-reshape-cost-forecasting-by-2030) and [McCormick Systems](https://www.mccormicksys.com/blog/should-construction-estimators-be-concerned-about-ai-in-estimating/) — 87% believe AI matters / only ~4% use it; estimator resistance and black-box accountability as key barriers. (The "~40% fail on data quality" figure circulates here but is not traced to a primary source — treated as directional.)
+20. [Galorath launches SEERai — PR Newswire](https://www.prnewswire.com/news-releases/galorath-launches-seerai-the-first-estimation-centric-agentic-artificial-intelligence-platform-for-cost-schedule-and-risk-operational-intelligence-302591874.html) (Oct 23, 2025) and [SEERai product page](https://galorath.com/seerai/) — "first estimation-centric agentic AI platform"; natural-language inputs → structured, audit-ready cost/schedule/risk estimates; proprietary "Instant RAG" grounds outputs in validated historical data without retraining; full source traceability + human oversight; multi-agent architecture. Galorath's underlying SEER parametric suite (SEER-H/SEM) is a longstanding NASA/DoD/aerospace incumbent.
+21. [Galorath 2026 State of the Industry report — PR Newswire](https://www.prnewswire.com/news-releases/galoraths-2026-state-of-the-industry-report-finds-79-of-organizations-increased-ai-spending-on-estimation-while-only-1-in-4-have-clear-ai-policies-302783568.html) — survey of 220 cost-estimation/planning professionals (12 countries, 9 sectors): 79% increased AI spend, 60% piloting AI, only ~24% have documented AI policies; only ~20% of practitioners and ~12% of leaders "very confident" in their estimating process; 56% run partially-integrated systems, 47% cite inaccurate forecast data. (Primary-source replacement for the earlier stale ~12%/~40% adoption figures.)
+22. [A Case-Based Reasoning Approach to Construction Cost Estimating — ResearchGate](https://www.researchgate.net/publication/268595917_A_Case-Based_Reasoning_Approach_to_Construction_Cost_Estimating) and [Preliminary Cost Estimation Model Using CBR and Genetic Algorithms — ASCE J. Computing in Civil Eng.](https://ascelibrary.org/doi/abs/10.1061/%28ASCE%29CP.1943-5487.0000054) — CBR retrieves similar past project cases by weighted attribute similarity and adapts them (retrieve/reuse/revise/retain); decades-old, explainable formal precedent for analogical cost estimation; hybrids tune weights via GA and correct for market drift via exponential smoothing.
+23. [Can LLMs Help Improve Analogical Reasoning For Strategic Decisions? — arXiv:2505.00603](https://arxiv.org/abs/2505.00603) — experimental evidence (humans vs GPT-4): GPT-4 achieves high recall but low precision, "frequently applying incorrect analogies based on superficial similarities," while humans show high precision / low recall; suggests LLM-as-generator + human-as-evaluator division of labor.
+24. Andrej Karpathy — "LLM Wiki" pattern (public gist, Apr 2026; secondary write-up: [Karpathy's LLM Wiki as Agent Memory — AAIF](https://aaif.io/blog/karpathys-llm-wiki-as-agent-memory/)) — compile raw sources over time into LLM-maintained markdown knowledge pages (curated agent memory) instead of on-demand RAG over raw artifacts; the guiding "distill the corpus into an LLM-legible knowledge base" framing for this project.

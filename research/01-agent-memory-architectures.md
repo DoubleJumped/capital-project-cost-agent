@@ -159,23 +159,33 @@ every future estimate that cites it.
 
 ## 4. Memory types, consolidation, and distillation
 
-The 2025–26 survey literature converges on a **four-part reasoning stack**: **procedural** ("how" —
-skills/code), **semantic** ("what the policy/general fact is"), **episodic** ("what happened, with
-context"), and **working** (live context). [10][12] Crucially, recent work reframes memory not as
-"passive stores of raw episodic logs" but as **curated 'lessons-learned' journals** — consolidating
-specific experiences into semantic rules for future tasks. [12]
+This **episodic / semantic / procedural / working** taxonomy — **procedural** ("how" — skills/code),
+**semantic** ("what the policy/general fact is"), **episodic** ("what happened, with context"), and
+**working** (live context) — is not a recent invention: it was set out for language agents by **CoALA**
+(Sumers et al., 2023) and is only echoed by the 2025–26 surveys. [10][12][23] Crucially, recent work
+reframes memory not as "passive stores of raw episodic logs" but as **curated 'lessons-learned'
+journals** — consolidating specific experiences into semantic rules for future tasks. [12]
 
 The **consolidation step** (episodes → semantic knowledge) is described as *"particularly
 underserved,"* typically done via explicit developer rules or **periodic LLM-driven summarization**,
 where the LLM is invoked at intervals to strip redundancy and store compressed facts/summaries. [12]
-This is precisely Karpathy's ingest+lint loop, and precisely how we should generate synthesis pages:
-periodically aggregate the episodic dossiers (L2) into semantic asset-class pages (L3).
+Its seminal form is Park et al.'s **Generative Agents** (2023) *reflection* step, which periodically
+synthesizes streams of episodic observations into higher-level semantic memories. [22] The most
+on-point *published mechanism* for actually generating our synthesis pages is **RAPTOR** (2024):
+recursively embed, **cluster, and abstractively summarize** chunks into a tree of increasingly general
+nodes, then retrieve at whichever level a question needs — precisely what lets a store answer
+multi-level *aggregate* questions ("winter premium across all compressor jobs") rather than only
+chunk-level ones. [21] This is Karpathy's ingest+lint loop with a concrete algorithm: periodically
+cluster the episodic dossiers (L2) and summarize each cluster into a semantic asset-class page (L3).
 
 One evidence-based caution: a controlled ablation ("Verbatim Chunks Beat Extracted Artifacts") found
-that for some long-conversation tasks, **verbatim retained chunks outperformed aggressively extracted
-facts** — over-distillation can lose the detail that later matters. [17] For us this argues for keeping
-the **L4 raw store** as a fallback: distill for the common path, but retain source-anchored raw text
-for questions the curation didn't anticipate.
+that for long-conversation tasks, **verbatim retained chunks decisively outperformed aggressively
+extracted facts** (LoCoMo **43.9 vs 28.0**; LongMemEval-S **67.4 vs 45.4**) — over-distillation loses
+the detail that later matters. Its sharper result: a **chunks ∪ artifacts *union* store matched
+verbatim retention on both benchmarks, while extracted artifacts alone never beat naive RAG.** [17]
+For us this argues *not* for treating raw text as a mere tail fallback but for **co-indexing the L3
+synthesis pages and the raw L4 source text in one retrievable store**: distill for navigability and
+aggregate answers, but keep the verbatim source alongside rather than as a last resort.
 
 ## 5. Curated wiki vs. raw RAG vs. GraphRAG — the tradeoff
 
@@ -183,12 +193,13 @@ for questions the curation didn't anticipate.
 |---|---|---|---|
 | **Raw vector RAG** over docs | Near-zero curation cost; simple; fast to iterate; good on unstructured text | Can't answer aggregate/statistical questions; citations are chunks not vetted facts; retrieval quality invisible; era-inconsistent numbers compared raw | Keep only as **L4 fallback** for quote-level evidence [18] |
 | **Curated LLM wiki** (ours) | Vetted facts + provenance; aggregate answers; human-legible audit trail; compounding artifact; cheap at n≈200 | Upfront compile cost; risk of baked-in extraction errors; needs lint discipline | **Primary** (L1–L3) [1] |
-| **GraphRAG / KG** | Multi-hop questions; explicit entities/relations; accuracy gap *widens* with query complexity (one AWS test: **+35% precision**) | Heavy build/maintenance; needs well-defined relations; overkill for shallow graphs | **Rejected for v1**; the L1 relational schema is our "pragmatic graph." Revisit only if multi-hop questions become common [18][19] |
+| **GraphRAG / KG** | Multi-hop and **global/corpus-level "sensemaking"** questions; explicit entities/relations; the primary Microsoft study shows graph community-summaries beat vector RAG on comprehensiveness/diversity for global questions over ~1M-token corpora | Heavy build/maintenance; needs well-defined relations; overkill for shallow graphs | **Rejected for v1**; the L1 relational schema is our "pragmatic graph." Revisit only if multi-hop questions become common [20][18][19] |
 | **Fine-tuning on the corpus** | Fluent domain voice | No auditable provenance; stale on update; overfits at n=200; costly | **Rejected** |
 
 The consensus in the GraphRAG-vs-vector literature is that graphs pay off in **curated, structured,
-compliance-heavy domains** and for **multi-hop** queries, and that the strongest systems **combine**
-vector search (initial retrieval) with graph traversal (context expansion). [18][19] Our cross-project
+compliance-heavy domains** and for **multi-hop / global-sensemaking** queries — the effect the primary
+Microsoft "From Local to Global" paper measures directly [20] — and that the strongest systems
+**combine** vector search (initial retrieval) with graph traversal (context expansion). [18][19] Our cross-project
 "edges" are mostly *similarity* (which we compute anyway from L1 attributes) plus a few relations
 (shared contractor/region), so a relational schema + markdown captures the same structure at a fraction
 of the complexity a 1–3-person team can maintain.
@@ -223,7 +234,7 @@ The four-layer KB in `plan/03` (L1 structured records → L2 dossiers → L3 syn
 store) *is* Karpathy's pattern instantiated for cost estimation. The research above sharpens it:
 
 **7.1 Adopt the three-flow discipline explicitly (ingest / query / lint).** Write the *schema* as a
-short `CLAUDE.md`-style doc (≤~500 words) that defines the dossier template, the synthesis-page
+short `CLAUDE.md`-style doc (Anthropic's guidance: **under ~200 lines**, concise) that defines the dossier template, the synthesis-page
 conventions, the provenance format, and the read order. Keep an `index.md` (every dossier + one-line
 summary + key attributes) and a greppable `log.md` (append-only ingest/lint history). *Pro:* directly
 proven pattern, human-legible, cheap. *Con:* requires discipline to keep lint running — automate it as
@@ -233,7 +244,10 @@ a scheduled job.
 - *Episodic* = L2 dossiers (one per project: scope, execution story, cost shape, lessons, data quality).
 - *Semantic* = L3 synthesis pages (asset-class cost behaviour, "winter construction premiums,"
   "brownfield surprise catalogue," "estimate-growth patterns by class"). Generate these by **periodic
-  LLM consolidation** over L1+L2 — Karpathy's ingest/lint loop *is* the consolidation pipeline. [12]
+  LLM consolidation** over L1+L2 — Karpathy's ingest/lint loop *is* the consolidation pipeline. A
+  concrete, published algorithm for it is **RAPTOR**: cluster the L2 dossiers and abstractively
+  summarize each cluster into a higher-level page, so the L3 tree can answer aggregate questions at the
+  right level of generality. [12][21]
 - *Procedural* = the schema + estimating skills (normalization method, reference-class steps).
 
 **7.3 Read order + sub-agent.** Default: load schema + relevant L3 synthesis pages up front (small,
@@ -246,7 +260,16 @@ context clean and auditable.
 **7.4 Retrieval = multi-signal, not pure vectors.** Combine attribute filtering (L1: asset class,
 greenfield/brownfield, season, size band) + keyword/BM25 + dense embeddings. mem0's own result is that
 multi-signal beats any single signal; for numeric/categorical project attributes, structured filtering
-matters more than embeddings. [11][18]
+matters more than embeddings. [11][18] A ready-made, on-brand recipe is Anthropic's **Contextual
+Retrieval**: prepend an LLM-generated, chunk-specific context blurb to each chunk *before* indexing it
+into both the embedding store and a BM25 index (contextual embeddings + contextual BM25), which cut
+top-20 retrieval-failure rate by ~49% (67% with reranking) — a concrete method for our hybrid store.
+[24] Retrieval *scoring* can borrow Park et al.'s **Generative Agents** formula — a weighted sum of
+**recency × importance × relevance** — which maps cleanly onto our signals (era-recency, project
+materiality, scope-similarity). [22] *Pro:* higher recall on heterogeneous, era-varied corpora. *Con:*
+hybrid indexing adds real build/tuning cost, and **weighting the signals is itself unsolved** — there
+is no principled default for balancing BM25 vs dense vs attribute filters vs recency/importance, so it
+needs held-out tuning against real comparables.
 
 **7.5 Provenance + normalization are load-bearing, because the output is a *defensible* estimate.**
 Every fact in a dossier links to source doc + page (Citations-API-style anchoring). All costs are
@@ -259,9 +282,12 @@ back into the KB **only through the same reviewed ingest pipeline** (see `plan/0
 propagation, full audit trail. *Con:* slower to update than autonomous memory — acceptable for an
 institutional-record system where correctness dominates.
 
-**7.7 Keep a raw fallback (L4).** The "verbatim beats over-extraction" result [17] warns against
-distilling away detail. Retain page-anchored raw text with hybrid search for questions curation didn't
-anticipate — distill for the 90% path, keep sources for the tail.
+**7.7 Co-index synthesis and raw source — don't demote L4 to a tail fallback.** The union-store
+ablation [17] is sharper than "keep a fallback": extracted artifacts *alone* never beat naive RAG,
+while a **chunks ∪ artifacts union matched verbatim retention** (LoCoMo 43.9 vs 28.0; LongMemEval-S
+67.4 vs 45.4). So retain page-anchored raw L4 text in the *same* hybrid-searchable store as the L3
+synthesis pages — distill for navigation and aggregate answers, but keep the verbatim source
+co-indexed so questions the curation didn't anticipate still land on real evidence.
 
 **7.8 Scale check.** At n≈200, GraphRAG/fine-tuning are over-engineered and the wiki's only real cost
 (compile effort) is modest and one-time. Reassess *only* if the corpus grows an order of magnitude or
@@ -289,13 +315,19 @@ adopting full GraphRAG. [18][19]
 14. [A-Mem code (NeurIPS 2025)](https://github.com/WujiangXu/A-mem) — reference implementation of agentic Zettelkasten memory.
 15. [Zep is the new state of the art in agent memory (getzep blog)](https://blog.getzep.com/state-of-the-art-agent-memory/) — LongMemEval results, latency reduction, independent Zep vs mem0 comparison.
 16. [From Agent Traces to Trust: Evidence Tracing and Execution Provenance in LLM Agents (arXiv 2606.04990)](https://arxiv.org/html/2606.04990v3) — memory as provenance-bearing evidence; requirements list (attribution, versioning, stale-invalidation); Anthropic Citations API character-level provenance.
-17. [Verbatim Chunks Beat Extracted Artifacts (arXiv 2601.00821)](https://arxiv.org/pdf/2601.00821) — over-extraction can lose detail; retain raw chunks for some tasks. *(Cautions our L4 fallback; single ablation study — treat as suggestive, not settled.)*
-18. [GraphRAG vs Vector RAG — when knowledge graphs outperform (Fluree)](https://flur.ee/fluree-blog/graphrag-vs-vector-rag-when-knowledge-graphs-outperform-semantic-search/) — graphs win on curated/structured/multi-hop; hybrid is strongest.
-19. [GraphRAG vs Vector RAG side-by-side (Meilisearch)](https://www.meilisearch.com/blog/graph-rag-vs-vector-rag) — accuracy gap widens with query complexity; ~35% precision lift figure; upfront build cost.
+17. [Verbatim Chunks Beat Extracted Artifacts: A Controlled Ablation of Memory Representations for Long LLM Conversations (arXiv 2601.00821)](https://arxiv.org/abs/2601.00821) — verbatim chunks beat extracted artifacts (LoCoMo 43.9 vs 28.0; LongMemEval-S 67.4 vs 45.4); a **chunks ∪ artifacts union store matched verbatim while artifacts alone never beat naive RAG** — argues for co-indexing raw L4 with L3, not raw-as-tail-fallback. *(Single ablation study — treat as suggestive, not settled.)*
+18. [GraphRAG vs Vector RAG — when knowledge graphs outperform (Fluree)](https://flur.ee/fluree-blog/graphrag-vs-vector-rag-when-knowledge-graphs-outperform-semantic-search/) — secondary/vendor blog: graphs win on curated/structured/multi-hop; hybrid is strongest.
+19. [GraphRAG vs Vector RAG side-by-side (Meilisearch)](https://www.meilisearch.com/blog/graph-rag-vs-vector-rag) — secondary/vendor blog: accuracy gap widens with query complexity; upfront build cost.
+20. [From Local to Global: A Graph RAG Approach to Query-Focused Summarization (Edge et al., Microsoft; arXiv 2404.16130)](https://arxiv.org/abs/2404.16130) — primary GraphRAG paper: LLM-built entity graph + community summaries beat vector RAG on comprehensiveness/diversity for global "sensemaking" questions over ~1M-token corpora.
+21. [RAPTOR: Recursive Abstractive Processing for Tree-Organized Retrieval (Sarthi et al.; arXiv 2401.18059)](https://arxiv.org/abs/2401.18059) — recursive embed/cluster/abstractive-summarize into a tree; retrieve at multiple abstraction levels; the concrete mechanism for generating L3 synthesis pages and answering multi-level aggregate questions.
+22. [Generative Agents: Interactive Simulacra of Human Behavior (Park et al., 2023; arXiv 2304.03442)](https://arxiv.org/abs/2304.03442) — seminal reflection-based consolidation (episodes → higher-level semantic memories) and the recency × importance × relevance retrieval score.
+23. [Cognitive Architectures for Language Agents / CoALA (Sumers et al., 2023; arXiv 2309.02427)](https://arxiv.org/abs/2309.02427) — canonical origin of the episodic/semantic/procedural/working memory taxonomy for language agents.
+24. [Anthropic — Introducing Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval) — LLM-contextualized chunks + contextual embeddings + contextual BM25 (+ reranking); ~49% (67% with reranking) reduction in retrieval failures — a concrete hybrid multi-signal recipe.
 
 *Note on dating/verification: Karpathy's LLM-wiki gist and the Anthropic context-engineering post are
 primary sources read directly. Benchmark numbers (LoCoMo/LongMemEval/DMR) are vendor-reported —
 directionally consistent across mem0 and Zep sources but not independently re-run here; treat absolute
-figures as indicative. The "+35% precision" GraphRAG figure is attributed to an AWS test via a secondary
-blog and was not traced to the primary. No citations were fabricated; where a claim rests on a single
-or secondary source it is flagged inline.*
+figures as indicative. The GraphRAG discussion now rests on the primary Microsoft "From Local to Global"
+paper [20] rather than vendor blogs alone; an untraceable "+35% precision (AWS test)" figure that had
+appeared only via a secondary blog has been removed. No citations were fabricated; where a claim rests
+on a single or secondary source it is flagged inline.*

@@ -23,8 +23,10 @@ to turn those neighbors into a defensible cost estimate with ranges and named co
   neighbors by inverse distance so closer analogues dominate, and expose the neighbor set + their
   actual costs as the evidence. This *is* essentially **reference-class forecasting** operationalized. [11][13][17]
 - **The estimate is a distribution, not a point.** The spread of neighbor costs (after normalization
-  for size/era/inflation) becomes the **range**; report P10/P50/P80 in the spirit of Flyvbjerg's uplift
-  method rather than a single number. [13][17]
+  for size/era/inflation) becomes the **range**; report P10/P50/P80 as a *calibrated* interval via
+  **conformal prediction over the k-NN residuals**, not a raw min/max spread. This is Flyvbjerg's
+  reference-class *outside view* (percentiles from the class distribution) — distinct from his
+  optimism-bias *uplift*, which is a single point adjustment to a bottom-up figure. [11][13][26]
 - **Use an LLM only where it earns its keep:** (a) to **extract structured attributes** from the new
   project's natural-language scope so structured matching can run, and (b) as an optional **listwise
   reranker / similarity judge** over the top handful of candidates — never as the primary retriever. [4][7][9]
@@ -42,7 +44,10 @@ throughput, pipe diameter, length, duration, weather-delay days, final cost), an
 (scope docs, DBM narrative, lessons-learned). Some artifacts are missing per project. The task —
 "find the most similar past projects to a described new one and estimate its cost" — is a textbook
 **case-based reasoning (CBR)** / **k-nearest-neighbor regression** problem, dressed in modern
-retrieval clothing. [2][11]
+retrieval clothing. The most directly relevant prior art is **analogy-based estimation (ABE)**:
+k-NN cost/effort estimation with optimized feature weights, pioneered by Shepperd & Schofield's
+ANGEL (shown to beat algorithmic regression on six datasets) and refined for decades since — the
+similarity-function-plus-feature-weighting machinery we need is precisely ABE's subject. [2][11][19]
 
 Two structural facts drive every design choice:
 
@@ -70,6 +75,11 @@ S_ij = ( Σ_k  w_ijk · s_ijk ) / ( Σ_k  w_ijk )
 - **Numeric features:** `s_ijk = 1 − |x_ik − x_jk| / R_k`, where `R_k` is the observed range
   (max − min) of feature *k*. The range normalization is what lets a $10M cost gap and a 3-metre
   diameter gap live on the same 0–1 scale — no single large-magnitude feature dominates. [6]
+  *Outlier caution:* because `R_k` is `max − min`, a single extreme value in a numeric feature
+  (e.g., one unusually large station or a mega-project cost) inflates the denominator and compresses
+  every other pair's gap toward 0, making genuinely different projects look artificially similar on
+  that feature. With ~200 projects and a few outliers this is a real risk; use a **robust range**
+  (IQR-based scaling or winsorizing at the 5th/95th percentiles) instead of raw max−min. [6]
 - **Binary / categorical features:** `s_ijk = 1` if the categories match, else `0`. Ordinal features
   (e.g., a small/medium/large station-size band) can use a rank-based form
   `s_ijk = 1 − |r_i − r_j| / (max r − min r)` (Podani extension) so "small vs large" counts as more
@@ -90,9 +100,12 @@ All are O(n·features) and trivially fast at n=200.
 
 **Recent refinements (2024–2025)** address Gower's known weakness — arbitrary equal weighting.
 "Gower's Similarity Coefficients with Automatic Weight Selection" and "Unbiased mixed variables
-distance" (arXiv 2411.00429) propose data-driven weightings that correct for the fact that
-categorical and continuous features have different natural variances, which otherwise biases the
-average. Worth piloting once a baseline works. [3]
+distance" (van de Velden et al. 2024, arXiv 2411.00429) propose data-driven weightings that correct
+for the fact that categorical and continuous features have different natural variances, which
+otherwise biases the average. The 2024 method is directly usable: the **`manydist` R package**
+(`mdist`) implements its independent/dependent/practice-based distances, ships a Gower preset, and
+exposes robust scaling and commensurability options — so this is a package call, not a
+reimplement-from-paper exercise. Worth piloting once a baseline works. [3]
 
 ---
 
@@ -103,28 +116,34 @@ regulator station, winter construction") carries signal no structured field capt
 **dense text-embedding models** turn each scope into a vector; cosine similarity ranks scopes by
 semantic closeness. [7][14]
 
-**SOTA landscape (2025–2026), from MTEB leaderboards** — treat exact scores cautiously (MTEB v2 is
-not comparable to v1, and vendor-reported numbers vary): [7]
+**SOTA landscape (2025–2026)** — treat exact scores cautiously: MTEB benchmarks differ (English
+task-mean vs Multilingual vs vendor retrieval sets are *not* interchangeable), and each row below is
+tagged with which benchmark the number comes from. Scores are from model-vendor primaries and the
+MTEB leaderboard, not a single aggregator blog: [20][21][22]
 
-| Model | MTEB (approx) | Dim | Notes |
+| Model | Score (benchmark) | Dim | Notes |
 |---|---|---|---|
-| Gemini Embedding 2 (Google) | ~68 (0.677 retrieval) | 3072 | Strong retrieval; multimodal; ~$0.20/M tok [7] |
-| Qwen3-Embedding-8B | ~70 | 4096 | Apache-2.0, self-hostable [7] |
-| Voyage 4 Large | ~66.8 | 2048 | $0.12/M tok; shared-space MoE [7] |
-| Cohere Embed v4 | ~65 | 1536 | 128K context — fits whole DBMs [7] |
-| OpenAI text-embedding-3-large | ~64.6 | 3072 | Stable, ubiquitous, $0.13/M tok [7] |
-| BGE-M3 | ~63 | 1024 | MIT, free self-host, budget option [7] |
+| Qwen3-Embedding-8B | 70.58 (MTEB Multilingual mean, #1 Jun 2025) | 4096 | Apache-2.0, self-hostable, MRL [20] |
+| Voyage 4 Large | vendor RTEB retrieval leader: +8.2% vs Gemini Embedding 001, +14.05% vs OpenAI v3-large | 2048 (MRL: 1024/512/256) | Shared-space MoE, ~40% lower serving cost, 200M tok free [21] |
+| Gemini Embedding 001 | 68.32 (MTEB English task mean, top spot Mar 2025) | 3072 (MRL→768) | Strong retrieval; Matryoshka [22] |
+| Gemini Embedding 2 | 67.71 (retrieval) | 3072 | Native multimodal (text/image/video/audio/PDF) [22] |
+| Cohere Embed v4 | ~65 (MTEB, aggregator) | 1536 | 128K context — fits whole DBMs [7] |
+| OpenAI text-embedding-3-large | ~64.6 (MTEB, aggregator) | 3072 | Stable, ubiquitous, $0.13/M tok [7] |
+| BGE-M3 | ~63 (MTEB, aggregator) | 1024 | MIT, free self-host, budget option [7] |
 
-*Flag:* the "Harrier-OSS-v1-27B (74.3)" and other early-2026 entries appear on the vendor blog
-leaderboard but I could **not** independently verify those scores against an authoritative MTEB
-snapshot; treat the leaderboard ordering as indicative, not gospel. [7]
+*Note on cross-benchmark placement:* Voyage's own numbers put voyage-4-large **above** Gemini
+Embedding 001 on their RTEB retrieval suite (+8.2%), which is why it is not ranked below Gemini here
+despite an earlier aggregator table implying otherwise; vendor benchmarks flatter the vendor, so the
+only number that will settle it for us is our own scope corpus. The bottom three rows carry only
+aggregator-blog scores [7] and should be re-checked against the live MTEB leaderboard before use.
 
-**Practical guidance that matters more than the leaderboard:** [7]
+**Practical guidance that matters more than the leaderboard:**
 
 - **Benchmark on our own data.** Generic MTEB rank rarely survives contact with a narrow domain like
   prairie-gas capital works. A ~66-MTEB model may beat a ~70 model on *our* scopes.
-- **Fine-tuning yields +10–30% in specialized domains** — but needs labeled pairs we mostly lack;
-  park it. [7]
+- **Fine-tuning is *blog-reported* to yield +10–30% in specialized domains** — that figure traces to
+  a vendor/aggregator guide, not a primary benchmark we verified; it also needs labeled pairs we
+  mostly lack, so park it and treat the range as indicative. [7]
 - **Context length matters:** Cohere v4 (128K) or long-context models can embed an entire DBM;
   otherwise chunk and pool.
 - **Matryoshka embeddings** let us truncate dimensions (e.g., 3072→512) with minor quality loss —
@@ -154,7 +173,26 @@ Mapped to our problem:
   latency by excluding items clearly outside the query's target category." [8] For us the payoff is
   as much **defensibility** as precision — the estimate should never be justified by a comparator
   that is a different class of asset.
+  - **Shrinkage risk at n=200 — the sharpest edge here.** Hard-ANDing filters (asset type *and*
+    greenfield/brownfield *and* region) against a 200-row corpus can collapse the candidate pool to
+    single digits or zero, which destabilizes k-NN (you end up averaging 2–3 loosely-related
+    projects, or none survive). Reserve hard exclusion for the one or two truly non-negotiable
+    attributes (asset class), and demote the rest to **soft/weighted penalties**: instead of
+    excluding a brownfield project when the query is greenfield, add a fixed distance penalty to its
+    Gower score so it can still surface if nothing better exists. This keeps the pool populated and
+    lets the *distance* — not a binary gate — express "somewhat comparable." The caliper (Section 8)
+    then guards the genuinely-no-comparable case.
 - **Stage 1 — similarity ranking** inside the filtered set, via Gower + embedding score.
+  - **How the two scores actually fuse (a real design decision, not hand-waving).** Gower yields a
+    *distance* over structured attributes; the embedding layer yields a *cosine rank* over scope
+    text — different objects that cannot be averaged raw. Pick one mechanic and state it: **(a) rank
+    fusion** — convert each to a ranked list of candidates and combine with Reciprocal Rank Fusion
+    (`score = Σ 1/(k+rank)`), which needs no score calibration and is robust to the two scales being
+    incommensurable; or **(b) weighted score fusion** — convert Gower distance to a similarity
+    (`1 − d`), min-max normalize both similarities to [0,1], and take `α·s_gower + (1−α)·s_embed`
+    with `α` set by domain preference (default `α≈0.7`, favoring the auditable structured signal).
+    Default to **(a) RRF** because it sidesteps the normalization argument entirely; fall back to (b)
+    only if you want an explicit tunable weight between structured and textual evidence. [18]
 - **Stage 2 — (optional) reranking** of the top ~10 by a stronger model (cross-encoder or LLM judge;
   Section 5).
 
@@ -181,8 +219,9 @@ Evidence (2024–2025 empirical analyses): [4][9]
   nDCG@10 (e.g., RankGPT-GPT-4 ~75.6, Zephyr-7B listwise ~62.7 on one benchmark); it models
   inter-document relationships that pointwise cannot. [4]
 - **Cross-encoder rerankers** (Cohere Rerank, Voyage rerank, BGE-reranker) give large gains for small
-  latency: studies report **+33–40% retrieval accuracy for ~+120ms**, and reranking commonly moves
-  truly-relevant items from rank 14/23 to the top. Cohere Rerank 3.5 ≈ 170ms on small payloads. [5][10]
+  latency: a vendor/blog study *reports* **+33–40% retrieval accuracy for ~+120ms** (treat as
+  blog-reported, not a peer benchmark we verified), and reranking commonly moves truly-relevant items
+  from rank 14/23 to the top. Cohere Rerank 3.5 ≈ 170ms on small payloads. [5][10]
 - **Sobering caveats:** LLM rerankers show a **consistent 5–15% performance drop on genuinely novel
   queries** (post-training-cutoff topics), undercutting "they generalize" claims; some models
   (ListT5) that shine on benchmarks **collapse to ~9.7 nDCG@10** on novel queries. [4] For us this
@@ -202,11 +241,14 @@ Equal weighting is rarely right — station size and greenfield/brownfield statu
 for cost than region. Options, roughly in order of how much data they need: [12][15]
 
 - **Expert / AHP weights.** Elicit pairwise importance from cost engineers via the Analytic Hierarchy
-  Process; standard in the CBR construction-cost literature. Zero data needed, fully defensible.
-  Default choice. [2]
-- **Genetic-algorithm-optimized weights.** CBR cost-estimation studies use a GA to search feature
-  weights that minimize retrieval error on held-out past projects; reported to "reduce errors
-  consistently." Feasible at n=200 with leave-one-out CV. [2]
+  Process; standard in the CBR/ABE construction-cost literature. Zero data needed, fully defensible.
+  Default choice. [2][19]
+- **Metaheuristic-optimized weights (GA / Grey Wolf, etc.).** ABE cost-estimation studies search
+  feature weights to minimize retrieval error on held-out past projects. The open-access GWO-ABE
+  study (2025) is concrete evidence this works: optimizing the similarity function's feature weights
+  more than **doubled PRED(0.25)** (>100% improvement) and cut MMRE/MdMRE versus unweighted ABE —
+  exactly the "which attributes drive cost" tuning we need, and citable in full unlike the paywalled
+  CBR abstracts. Feasible at n=200 with leave-one-out CV. [2][19]
 - **Gradient-descent / learned weighted metrics.** Learn per-feature (or per-class) weights minimizing
   a k-NN error surrogate. Powerful but data-hungry and less interpretable — a later optimization. [15]
 - **Automatic Gower weight selection** (2024 methods) to de-bias mixed-type averaging. [3]
@@ -242,11 +284,31 @@ Design choices, with our recommendations:
   uncertainty. Report **P10/P50/P80** and name each neighbor with its actual cost. This operationally
   *is* **reference-class forecasting**: take the outside view from a class of analogues rather than a
   bottom-up inside view. [13][17]
+- **Produce the range with conformal prediction, not the raw neighbor spread.** The naive P10/P80
+  from the min/max of neighbor costs has no coverage guarantee and is hostage to a single outlier
+  neighbor. **Regression conformal prediction with nearest neighbours** ([11]) is the statistically
+  defensible upgrade: calibrate nonconformity scores (the k-NN prediction residuals) over the 200
+  projects via leave-one-out, then emit intervals with a *guaranteed* marginal coverage level (e.g.,
+  an 80% interval that empirically contains the true cost ~80% of the time). Normalized/locally-
+  weighted nonconformity scores let the interval widen honestly when the query sits in a sparse,
+  poorly-matched region — precisely the "novel project" case. This turns "P10/P50/P80" from a
+  hand-drawn spread into a calibrated claim a cost-review board can trust. [11]
+- **Get the reference-class-forecasting story right.** Flyvbjerg's RCF **uplift** is a *single
+  optimism-bias point adjustment* (e.g., +40% to reach a 50/50 cost-overrun budget, +68% to reach
+  P90 for rail), derived from where a bottom-up estimate falls in the reference class's overrun
+  *distribution* — it is **not** itself a P10/P50/P80. Our percentiles come from the neighbor-cost
+  distribution (via conformal above), which is the RCF *outside view*; if we ever start from a
+  bottom-up figure, an uplift would be the separate step that shifts it. State it this way and cite
+  Flyvbjerg directly rather than leaning on the Wikipedia gloss. [13][26]
 
-*Accuracy expectation:* CBR construction-cost studies report meaningful error reduction over
-regression baselines, but I could **not** extract a single authoritative MAPE figure from the
-open-access sources (several were paywalled); typical early-estimate CBR MAPEs in the literature sit
-in the ~10–20% range but treat that as unverified here. [2]
+*Accuracy target / success bar:* the ABE literature gives us a concrete expectation the paywalled
+CBR abstracts could not. Analogy-based estimators are typically judged by **PRED(25)** (fraction of
+estimates within 25% of actual) and **MMRE/MdMRE**; well-tuned, feature-weighted ABE reaches
+PRED(0.25) roughly in the 0.4–0.6 range on software datasets, and the GWO-ABE study more than doubled
+its unweighted PRED(0.25) baseline. Translate that into our bar: **aim for the majority of estimates
+within ±25% of actual (MdMRE well under 0.25)**, validated by leave-one-out on the 200 projects, and
+treat any early-estimate MAPE in the ~10–20% band as a plausible-but-to-be-earned target, not a
+promise. [2][19]
 
 ---
 
@@ -328,8 +390,9 @@ step pull the original text when a comparator is decisive.
    (RRF-fused, k tuned for small corpus). [1][7][18]
 5. **Stage 2 — optional listwise LLM similarity-judge** over the top ~8 to reorder on engineering
    nuance and *write the "why comparable" narrative*. [4]
-6. **Estimate:** distance-weighted k-NN regression over the top k (k by LOO-CV) → **P10/P50/P80
-   range**, named comparables, each with its normalized actual cost and citations. [11][13]
+6. **Estimate:** distance-weighted k-NN regression over the top k (k by LOO-CV) → **conformal
+   P10/P50/P80 range** (calibrated coverage, widening in sparse/novel regions), named comparables,
+   each with its normalized actual cost and citations. [11][13][26]
 7. **Learn:** log estimate-vs-actual to retune feature weights and k over time. [16]
 
 ---
