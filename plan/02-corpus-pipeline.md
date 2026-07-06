@@ -74,7 +74,7 @@ Each stage writes durable artifacts; the pipeline is re-runnable per-project and
 - Two-pass for numerics: extract, then a verifier prompt re-locates each number in the source and checks arithmetic (buckets sum to total). Disagreement → flag for human review.
 
 ### 2.4 Normalization
-- **Escalation**: restate all costs to reference-year dollars using a documented index (Canadian construction/utility cost index — selection documented in `research/04`); store both raw and normalized, plus the index snapshot used (reproducibility).
+- **Escalation**: restate all costs to reference-year dollars using a documented index. Candidates per `research/04`: **StatCan Building Construction Price Index** (now 15 CMAs including Regina, Saskatoon, Calgary, Edmonton, Winnipeg) and the utility-specific **Handy-Whitman gas-utility index**, with ENR CCI as a shape cross-check. Store both raw and normalized values plus the index snapshot used (reproducibility); escalation also runs *forward* at estimate time to as-spent dollars in the construction window.
 - **Units**: single unit system; derived unit-cost fields ($/HP, $/km, $/m³ per day...) computed here, not ad hoc later.
 - **Taxonomy mapping**: era-specific terminology mapped to the controlled vocabularies (asset types, cost buckets, delay causes). The mapping table is itself a reviewed artifact.
 - Optional (phase 2): location factors within the service territory; likely minor within one prairie region — validate rather than assume.

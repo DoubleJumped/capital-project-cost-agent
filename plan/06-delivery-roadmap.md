@@ -52,7 +52,7 @@ Decisions argued in earlier docs, gathered with their one-line verdicts:
 | 6 | Learning | Runtime agent memory writes **vs** reviewed pipeline events | Reviewed pipeline only; agent proposes, humans merge | `plan/03` §6, `plan/05` §4 |
 | 7 | Build order | All classes broad-first **vs** one class deep-first | Deep-first (credibility milestone) | this doc §1 |
 | 8 | Framework | LangChain/agent-framework **vs** thin custom on native tool-use | Thin custom + MCP-shaped KB tools | this doc §2 |
-| 9 | Buy vs build | Commercial AI estimating tools **vs** build on own corpus | Build (the moat *is* the private corpus + methodology fit); re-check against `research/07` landscape before Phase 1 | `research/07` |
+| 9 | Buy vs build | Commercial AI estimating tools **vs** build on own corpus | Build — but eyes open: Galorath's **SEERai** (Oct 2025) is the closest commercial analog (agentic NL→audit-ready estimates over validated historicals); our edge is depth on our own DBM/lessons-learned corpus, not the concept. Demo SEERai during Phase 0 as a calibration point | `research/07` |
 | 10 | Extraction QA | Full human review **vs** confidence-sampled review | 100% on cost/capacity/type fields, sampled elsewhere | `plan/02` §2.5 |
 
 Each verdict is revisitable; the ledger exists so future debates start from the recorded reasoning instead of re-litigating from zero.

@@ -53,7 +53,7 @@ If the comparable set is thin (n < 3 close matches — will happen at 200 projec
 ## 4. Compute
 
 All arithmetic in tools:
-- **Analog method** (primary): per comparable, normalized cost → scale by capacity ratio with class-appropriate scaling (linear $/unit or capacity-exponent rule per L3) → apply the adjustment plan's quantified deltas (each with a source: observed distribution / L3 prior / flagged judgment) → k adjusted analog estimates.
+- **Analog method** (primary): per comparable, normalized cost → scale by capacity ratio with class-appropriate scaling (linear $/unit or capacity-exponent rule per L3 — economies of scale are large and real: `research/04` cites ~3.2× per-HP cost difference between 2,000 HP and 30,000 HP compression) → apply the adjustment plan's quantified deltas (each with a source: observed distribution / L3 prior / flagged judgment) → k adjusted analog estimates.
 - **Parametric baseline** (independent check): unit-cost regression/quantiles for the asset class from L1 population (works even when close comps are thin).
 - **Range assembly**: spread of adjusted analogs + baseline + historical estimate-growth distribution for this class-and-stage (the in-house reference-class adjustment) ⇒ P10/P50/P90. Exact assembly rule is a `plan/05` calibration decision (candidates: quantiles of pooled adjusted analogs widened by backtest-measured error; or Monte Carlo over adjustment uncertainties). The rule is *fixed methodology, versioned* — not improvised per run by the LLM.
 

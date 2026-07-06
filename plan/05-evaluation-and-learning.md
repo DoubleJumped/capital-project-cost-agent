@@ -24,8 +24,10 @@ For each held-out project *P*:
 ## 2. Calibration: turning backtest error into honest ranges
 
 The range-assembly rule of `plan/04` §4 is *fit on backtest results*, not assumed:
-- Measure the empirical error distribution of adjusted-analog P50s per asset class; set the widening factors so coverage hits target (conformal-style: use held-out residual quantiles directly — simple, distribution-free, works at small n; details refined per `research/06`).
-- Where the corpus is thin (rare asset classes), ranges inherit the *global* error distribution — wider, honestly.
+- Measure the empirical error distribution of adjusted-analog P50s per asset class; set the widening factors so coverage hits target. `research/06` names the machinery: **jackknife+ / CV+ conformal prediction** — distribution-free, finite-sample coverage from leave-one-out residuals, wraps *any* underlying predictor including the LLM-analog method, and works at small n.
+- Where the corpus is thin (rare asset classes), ranges inherit the *global* error distribution — wider, honestly. Caveat from `research/06`: marginal conformal coverage does **not** guarantee per-class coverage; if we want a defensible "station estimates land in-band 80% of the time" claim, use **Mondrian (class-conditional) conformal** over pre-declared asset classes.
+- As regimes shift (escalation shocks), **adaptive conformal inference (ACI)** re-tunes coverage from recent under/over-coverage — the principled version of §5's drift response.
+- Metrics vocabulary per `research/06`: interval coverage (PICP) vs. nominal, sharpness (width), and pinball loss as the proper scoring rule.
 - Recalibrate whenever the KB or methodology version changes; calibration parameters are versioned artifacts alongside the KB commit hash.
 
 Also calibrate the *words*: the memo's confidence language maps to measured coverage ("this class of estimate has historically landed within ±40% eight times out of ten"), never to LLM-verbalized confidence, which research consistently shows is miscalibrated (see `research/06`).
