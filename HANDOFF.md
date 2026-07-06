@@ -1,5 +1,7 @@
 # HANDOFF — working state
 
+**STATUS: COMPLETE (2026-07-06).** All 7 research docs written/critiqued/revised (Opus subagents, workflow `wf_af8d7aa8-0be`, 21 agents, 0 errors), all 7 plan docs written and reconciled against research findings, README finalized, everything pushed to `DoubleJumped/capital-project-cost-agent` (public). Natural next steps when the project kicks off for real: Phase 0 data reconnaissance per `plan/06` §1.
+
 **Purpose of this file:** if the session ends partway, a new agent (or Graeme at work) reads this to know exactly where things stand and what to do next.
 
 ## The assignment (verbatim intent)
