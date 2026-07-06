@@ -92,7 +92,7 @@ Their recommended architecture is a **hybrid**: some curated context loaded up f
 `CLAUDE.md` role — a naive drop-in of high-signal instructions) plus **just-in-time retrieval** where
 the agent holds lightweight identifiers (file paths, queries, links) and pulls detail at runtime via
 tools like `glob`/`grep`/`head`/`tail` — enabling **progressive disclosure** and sidestepping stale
-indexes. [3] Anthropic recommends targeting **under ~200 lines / ~500 words** per `CLAUDE.md` and note
+indexes. [3] Anthropic recommends keeping each `CLAUDE.md` **under ~200 lines** and concise, noting
 that specificity and concision improve adherence. [5]
 
 Two more directly reusable primitives:

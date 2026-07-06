@@ -9,12 +9,19 @@ literature — and what lessons transfer to our ~200-project gas-utility estimat
 
 ## TL;DR for this project
 
-- **Nobody has publicly shipped exactly what we are proposing** — an *analogical, evidence-cited,
-  LLM-legible* whole-project estimator over a utility's own heterogeneous corpus. The market splits
-  into (a) computer-vision *takeoff* tools (Togal, Kreo, STACK) that count doors and walls off
-  drawings, and (b) statistical/ML *parametric* estimators (Cleopatra, InEight, academic RF/XGBoost
-  models). Our niche — reasoning over messy DBMs/lessons-learned to name comparables — is genuinely
-  open. That is an opportunity and a warning (no template to copy).
+- **The niche is narrower than "nobody has built this" — Galorath now ships the closest thing.** In
+  Oct 2025 Galorath launched **SEERai**, marketed as "the first estimation-centric agentic AI
+  platform," which turns natural-language project inputs into structured, audit-ready cost/schedule/
+  risk estimates grounded in validated historical data via proprietary "Instant RAG," with full
+  source traceability and human oversight [20] — i.e. almost exactly our thesis, minus the
+  utility-specific corpus. So the open niche is *narrower*: an *analogical, evidence-cited,
+  LLM-legible* whole-project estimator over **a single utility's own heterogeneous DBM/lessons-learned
+  corpus**. The rest of the market splits into (a) computer-vision *takeoff* tools (Togal, Kreo,
+  STACK) that count doors and walls off drawings, and (b) statistical/ML *parametric* estimators
+  (Cleopatra, InEight, SEER, academic RF/XGBoost models). Reasoning over messy DBMs/lessons-learned to
+  name comparables is still open — but it is a defensible *segment*, not virgin territory. That is an
+  opportunity and a warning (SEERai is now the template to study, and the competitor to beat on
+  utility-corpus depth).
 - **The strongest conceptual precedent is Flyvbjerg's Reference Class Forecasting (RCF)** [12][13]:
   find similar past projects, build an empirical distribution, adjust. This *is* our method with an
   LLM doing the similarity matching. RCF has a documented accuracy track record and is the

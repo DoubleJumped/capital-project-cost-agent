@@ -17,8 +17,10 @@ retrievable form.*
   brittle construction step for marginal gain [1][6][9]. **Recommendation: do not build a full
   Microsoft-style GraphRAG. Build hybrid retrieval + a curated per-project knowledge base.**
 - **The highest-leverage retrieval upgrade is boring and cheap:** BM25 (keyword) + dense vectors +
-  a cross-encoder reranker. This stack repeatedly delivers **+15–48% retrieval accuracy** over dense-only
-  in enterprise settings, with no graph infrastructure [1][4]. Do this first.
+  a cross-encoder reranker. The most rigorous measurement is Anthropic's Contextual Retrieval:
+  hybrid contextual embeddings + BM25 cut top-20 retrieval failures by **49%**, and **67% with reranking**
+  added [14]. Blog-reported enterprise cascades claim larger but less-controlled gains (**+17–48%** recall/accuracy
+  over dense-only [4]); treat those as directional. Either way it needs no graph infrastructure. Do this first.
 - **A curated-document / "table-of-contents navigation" layer (PageIndex-style) fits our Karpathy
   "LLM wiki" thesis better than vector RAG for the reasoning step** — the agent navigates a structured
   index of 200 project summaries and decides which to open, rather than similarity-matching chunks [7].
@@ -148,8 +150,8 @@ reranking**, and it needs no graph.
   dense catches paraphrase/semantic scope similarity; the reranker fixes ordering.
 - **Measured gains:** a production cascade (BM25 + FAISS + cross-encoder) reported **+48% accuracy**;
   a two-stage hybrid→neural-rerank hit **Recall@5 0.816 vs 0.695 for RRF-only (+17%), 0.644 BM25 (+27%),
-  0.587 dense (+39%)**; on WANDS, tuned hybrid gave **+7.4% NDCG** over either method alone [4]. The 2025
-  consensus: *"a two-week reranking project can save a six-month [GraphRAG] migration"* [1].
+  0.587 dense (+39%)**; on WANDS, tuned hybrid gave **+7.4% NDCG** over either method alone [4]. As one practitioner writeup
+  puts it, *"a two-week reranking project saved them a six-month migration"* [13].
 - **Metadata filtering is free precision.** Because we control extraction, we can hard-filter candidates by
   structured attributes *before* semantic ranking — e.g. only greenfield stations, only winter builds, only
   >X MMSCFD. This is often more valuable than any fancier retrieval, and directly serves the
@@ -172,7 +174,8 @@ communities, pre-summarize them, then answer global queries by aggregating commu
   graph-construction LLM quality** (GPT-4o 75% vs GPT-4o-mini 71%) and to graph *completeness* — in one KG,
   only **65.8% of answer entities even existed in the graph**, capping accuracy [6]. Practitioner thresholds
   put GraphRAG's payoff at **100k+ documents with regular multi-hop/global needs** [1][9].
-- **Cost trend:** the ecosystem has attacked the cost. **LazyGraphRAG (Microsoft, GA mid-2025)** defers all
+- **Cost trend:** the ecosystem has attacked the cost. **LazyGraphRAG (Microsoft; public preview,
+  integrated into Azure Local + Microsoft Discovery as of mid-2025 — not yet GA)** defers all
   LLM summarization to query time, giving **indexing cost identical to vector RAG (0.1% of full GraphRAG)**
   and comparable global-query quality at **~700× lower query cost / 4% of GraphRAG's global query cost**
   [11]. **LightRAG (EMNLP 2025)** claims near-GraphRAG quality at ~2 orders of magnitude lower cost [1]. So
@@ -269,7 +272,7 @@ drawing model rankings (GPT-4o-mini > GPT-4o) come from one benchmark and may no
 8. [Best LLM Document Parsers 2025 — LlamaIndex](https://www.llamaindex.ai/insights/best-llm-document-parser-2025) and [parsemypdf (GitHub)](https://github.com/genieincodebottle/parsemypdf) — vision-LLM parsing options, LlamaParse 2025 model backends (GPT-4.1, Gemini 2.5/3.1 Pro), skew correction, parse modes.
 9. [When to use Graphs in RAG: A Comprehensive Analysis (arXiv 2506.05690)](https://arxiv.org/html/2506.05690v3) — analysis of when graph retrieval helps vs. plain retrieval.
 10. [Azure AI Document Intelligence](https://azure.microsoft.com/en-us/products/ai-foundry/tools/document-intelligence) and [pricing](https://azure.microsoft.com/en-us/pricing/details/document-intelligence/) — layout/table model, 99%+ text/table accuracy, ~$10/1,000 pages, Forrester 90% AI vs 60% template-OCR context.
-11. [LazyGraphRAG sets a new standard for quality and cost — Microsoft Research](https://www.microsoft.com/en-us/research/blog/lazygraphrag-setting-a-new-standard-for-quality-and-cost/) — indexing cost = vector RAG (0.1% of full GraphRAG), ~700× lower global query cost, defers LLM summarization to query time, GA mid-2025.
+11. [LazyGraphRAG sets a new standard for quality and cost — Microsoft Research](https://www.microsoft.com/en-us/research/blog/lazygraphrag-setting-a-new-standard-for-quality-and-cost/) — indexing cost = vector RAG (0.1% of full GraphRAG), ~700× lower global query cost, defers LLM summarization to query time. Status: public preview, integrated into Azure Local and Microsoft Discovery (per the blog's June 2025 editor's note) — not general availability.
 12. [Large Language Models with Human-In-The-Loop Validation for Systematic Review Data Extraction (ResearchGate)](https://www.researchgate.net/publication/388316685_Large_Language_Models_with_Human-In-The-Loop_Validation_for_Systematic_Review_Data_Extraction) plus search-synthesized confidence-routing patterns — uncertainty sampling, self-consistency confidence scoring, ~87% human-confirms-LLM on low-confidence cases, two-tier multi-model→expert routing.
 
 *Additional sources consulted (context, not primary claims):* [Late Chunking (arXiv 2409.04701)](https://arxiv.org/pdf/2409.04701); [Reconstructing Context: chunking strategies (arXiv 2504.19754)](https://arxiv.org/abs/2504.19754); [Agentic RAG survey (arXiv 2501.09136)](https://arxiv.org/html/2501.09136v4); [LlamaIndex PropertyGraphIndex](https://www.llamaindex.ai/blog/introducing-the-property-graph-index-a-powerful-new-way-to-build-knowledge-graphs-with-llms); [MechVQA: multimodal LLMs on mechanical drawings (arXiv 2605.30794)](https://arxiv.org/html/2605.30794v1); [We Benchmarked AI on Tables and Engineering Drawings — Businessware Tech](https://www.businesswaretech.com/blog/benchmarking-ai-on-tables-and-engineering-drawings-results-findings).
