@@ -26,7 +26,7 @@ to turn those neighbors into a defensible cost estimate with ranges and named co
   for size/era/inflation) becomes the **range**; report P10/P50/P80 as a *calibrated* interval via
   **conformal prediction over the k-NN residuals**, not a raw min/max spread. This is Flyvbjerg's
   reference-class *outside view* (percentiles from the class distribution) — distinct from his
-  optimism-bias *uplift*, which is a single point adjustment to a bottom-up figure. [11][13][26]
+  optimism-bias *uplift*, which is a single point adjustment to a bottom-up figure. [11][13][23]
 - **Use an LLM only where it earns its keep:** (a) to **extract structured attributes** from the new
   project's natural-language scope so structured matching can run, and (b) as an optional **listwise
   reranker / similarity judge** over the top handful of candidates — never as the primary retriever. [4][7][9]
@@ -299,7 +299,7 @@ Design choices, with our recommendations:
   *distribution* — it is **not** itself a P10/P50/P80. Our percentiles come from the neighbor-cost
   distribution (via conformal above), which is the RCF *outside view*; if we ever start from a
   bottom-up figure, an uplift would be the separate step that shifts it. State it this way and cite
-  Flyvbjerg directly rather than leaning on the Wikipedia gloss. [13][26]
+  Flyvbjerg directly rather than leaning on the Wikipedia gloss. [13][23]
 
 *Accuracy target / success bar:* the ABE literature gives us a concrete expectation the paywalled
 CBR abstracts could not. Analogy-based estimators are typically judged by **PRED(25)** (fraction of
@@ -392,7 +392,7 @@ step pull the original text when a comparator is decisive.
    nuance and *write the "why comparable" narrative*. [4]
 6. **Estimate:** distance-weighted k-NN regression over the top k (k by LOO-CV) → **conformal
    P10/P50/P80 range** (calibrated coverage, widening in sparse/novel regions), named comparables,
-   each with its normalized actual cost and citations. [11][13][26]
+   each with its normalized actual cost and citations. [11][13][23]
 7. **Learn:** log estimate-vs-actual to retune feature weights and k over time. [16]
 
 ---
@@ -404,9 +404,11 @@ step pull the original text when a comparator is decisive.
 2. [Cost estimation model for building projects using CBR (SNU) / CBR cost-estimation literature](https://www.researchgate.net/publication/237189236_Cost_estimation_model_for_building_projects_using_case-based_reasoning)
    — CBR retrieval, attribute weighting via AHP/GA, cost-index normalization (full PDF was
    inaccessible; drawn from abstracts/search summaries).
-3. [Unbiased mixed variables distance (arXiv 2411.00429)](https://arxiv.org/pdf/2411.00429) and
-   [Gower's Similarity Coefficients with Automatic Weight Selection](https://www.researchgate.net/publication/377814622_Gower's_Similarity_Coefficients_with_Automatic_Weight_Selection)
-   — 2024 data-driven weightings correcting Gower's equal-weight bias.
+3. [Unbiased mixed variables distance (van de Velden et al. 2024, arXiv 2411.00429)](https://arxiv.org/pdf/2411.00429),
+   [Gower's Similarity Coefficients with Automatic Weight Selection](https://www.researchgate.net/publication/377814622_Gower's_Similarity_Coefficients_with_Automatic_Weight_Selection),
+   and the [`manydist` R package (`mdist`)](https://rdrr.io/cran/manydist/man/mdist.html) that
+   implements arXiv 2411.00429 (independent/dependent/practice-based distances, Gower preset, robust
+   scaling) — 2024 data-driven weightings correcting Gower's equal-weight bias, available as a package.
 4. [How Good are LLM-based Rerankers? An Empirical Analysis (arXiv 2508.16757)](https://arxiv.org/html/2508.16757v1)
    — pointwise/pairwise/listwise nDCG numbers; 5–15% drop on novel queries; ListT5 generalization failure.
 5. [Cross-Encoder reranking study (Ailog)](https://app.ailog.fr/en/blog/news/reranking-cross-encoders-study)
@@ -415,8 +417,10 @@ step pull the original text when a comparator is decisive.
 6. [Gower's distance for mixed data (Towards Data Science)](https://towardsdatascience.com/gowers-distance-for-mixed-categorical-and-numerical-data-799fedd1080c/)
    — worked per-feature similarity computation and range normalization.
 7. [Best Embedding Models 2025: MTEB Scores & Leaderboard (Ailog)](https://app.ailog.fr/en/blog/guides/choosing-embedding-models)
-   — model names/dims/costs/MTEB scores; "test on your data"; fine-tune +10–30%; Matryoshka. Some
-   early-2026 scores unverified.
+   — *aggregator/secondary* source, now used only for the Cohere/OpenAI/BGE rows, "test on your
+   data" guidance, the *blog-reported* fine-tune +10–30% and reranker +33–40%/+120ms figures, and
+   Matryoshka. Primary vendor/leaderboard sources ([20][21][22]) supersede it for the top rows; some
+   early-2026 aggregator scores remain unverified.
 8. [Metadata-driven RAG for financial QA (arXiv 2510.24402)](https://arxiv.org/pdf/2510.24402) and
    [Metadata Filtering and Reranking (DeepWiki)](https://deepwiki.com/AyushDhimann/RAGging/5.3-metadata-filtering-and-reranking)
    — hard metadata filter before ranking improves precision/latency.
@@ -432,7 +436,8 @@ step pull the original text when a comparator is decisive.
     and [KNN matching / propensity primer (TDS)](https://towardsdatascience.com/causal-inference-with-python-a-guide-to-propensity-score-matching-b3470080c84f/)
     — nearest-neighbor/caliper matching, balance checks; the "when is a match too poor" discipline.
 13. [Reference class forecasting — Wikipedia](https://en.wikipedia.org/wiki/Reference_class_forecasting)
-    — outside-view method steps, reference-class selection, uplift/percentile (Edinburgh Tram) example.
+    — outside-view method steps, reference-class selection (secondary gloss; see [23] for the primary
+    Flyvbjerg characterization of uplift vs distribution).
 14. [Top embedding models on the MTEB leaderboard (Modal)](https://modal.com/blog/mteb-leaderboard-article)
     — corroborating MTEB retrieval leaders and benchmark caveats.
 15. [Learning weighted similarity functions to improve NN (ScienceDirect)](https://www.sciencedirect.com/science/article/abs/pii/S0020025509001832)
@@ -445,3 +450,28 @@ step pull the original text when a comparator is decisive.
 18. [Hybrid Search: BM25, Vector & RRF reference](https://www.digitalapplied.com/blog/hybrid-search-bm25-vector-reranking-reference-2026)
     and [Sparse vs Dense Retrieval (ML Journey)](https://mljourney.com/sparse-vs-dense-retrieval-for-rag-bm25-embeddings-and-hybrid-search/)
     — RRF formula `1/(k+rank)`, WANDS numbers, small-corpus k-tuning caveat.
+19. **Analogy-based estimation (ABE) literature** —
+    [Shepperd & Schofield 1997, *Estimating Software Project Effort Using Analogies*, IEEE TSE 23:736–743](https://bura.brunel.ac.uk/bitstream/2438/1101/3/Estimating%20Software%201997.pdf)
+    (foundational ABE / ANGEL, beats algorithmic regression on six datasets);
+    [Enhancing Analogy-Based Software Cost Estimation using Grey Wolf Optimization (PeerJ CS, 2025)](https://peerj.com/articles/cs-2794/)
+    (metaheuristic feature-weight optimization of the similarity function; >100% PRED(0.25)
+    improvement, reduced MMRE/MdMRE — open access, [PMC mirror](https://pmc.ncbi.nlm.nih.gov/articles/PMC12190706/));
+    [Azzeh & Nassif 2017, adaptive set-of-analogies per project (arXiv 1703.04564)](https://arxiv.org/abs/1703.04564)
+    (per-project analogy count, informs k-selection). Supplies the GA/feature-weighting and
+    accuracy-target (PRED(25), MMRE/MdMRE) evidence that grounds Sections 1, 6, and 7.
+20. [Qwen3-Embedding blog (Qwen team)](https://qwenlm.github.io/blog/qwen3-embedding/)
+    — Qwen3-Embedding-8B: 70.58 MTEB Multilingual mean (#1, Jun 2025), 4096 dim, MRL, Apache-2.0.
+21. [Voyage 4 model family blog (Voyage AI)](https://blog.voyageai.com/2026/01/15/voyage-4/)
+    and [voyage-4-large spec/aggregator (Vercel AI Gateway)](https://vercel.com/ai-gateway/models/voyage-4-large)
+    — MoE shared-space embeddings; RTEB retrieval leader (+8.2% vs Gemini Embedding 001, +14.05% vs
+    OpenAI v3-large); dims 2048/1024/512/256; ~40% lower serving cost; corrects the earlier table's
+    understatement of voyage-4-large.
+22. [Gemini Embedding: Generalizable Embeddings from Gemini (arXiv 2503.07891)](https://arxiv.org/pdf/2503.07891)
+    and [MTEB leaderboard coverage (Modal / awesomeagents aggregators)](https://modal.com/blog/mteb-leaderboard-article)
+    — Gemini Embedding 001: 68.32 MTEB English task-mean (top spot Mar 2025), 3072 dim, Matryoshka;
+    Gemini Embedding 2 native-multimodal, ~67.71 retrieval.
+23. **Bent Flyvbjerg — reference-class forecasting primaries** —
+    [*Curbing Optimism Bias and Strategic Misrepresentation: RCF in Practice*](https://www.researchgate.net/publication/233258056_Curbing_Optimism_Bias_and_Strategic_Misrepresentation_in_Planning_Reference_Class_Forecasting_in_Practice)
+    and *How Big Things Get Done* (2023) — establishes that the **uplift** is a single optimism-bias
+    point adjustment (e.g., +40% for 50/50, +68% for P90 on rail) drawn from the reference-class
+    overrun *distribution*, which is a distinct object from the P10/P50/P80 percentiles themselves.
