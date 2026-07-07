@@ -19,6 +19,7 @@ This repo is the complete research base and end-to-end plan for building that sy
 | [04 Agent flow](plan/04-agent-flow.md) | Fixed six-stage estimation flow: intake → retrieve → reason → compute → challenge → estimate basis memo. LLM reasons, code computes |
 | [05 Evaluation & learning](plan/05-evaluation-and-learning.md) | Leave-one-out backtesting with leakage discipline; conformal (jackknife+/Mondrian/ACI) range calibration; the reviewed learning loop |
 | [06 Delivery roadmap](plan/06-delivery-roadmap.md) | Phases with exit criteria, reference stack, the 10-decision tradeoff ledger, risk register, team envelope |
+| [07 Phase 0 playbook](plan/07-phase-0-playbook.md) | Day-one execution: access requests, inventory script + registry schema, the four gating measurements, parser bake-off, estimator interview guide, SEERai demo, reality-report template |
 
 ## The research (`research/`)
 
@@ -38,4 +39,4 @@ Curate, don't just index: distill the 200 project folders — via an LLM pipelin
 
 ---
 
-*Built with a multi-agent research workflow (7 threads × research/critique/revise). `HANDOFF.md` records working state and how to resume or extend.*
+*Built with a multi-agent research workflow (7 threads × research/critique/revise), then revised after an end-to-end review pass (2026-07-06): retrieval filter/caliper design tightened, an estimate-growth double-count removed from range assembly, a raw-RAG baseline added to test the core curation hypothesis, backtest compute mitigations added, and the Phase 0 playbook (`plan/07`) written. `HANDOFF.md` records working state and how to resume or extend.*

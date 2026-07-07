@@ -1,6 +1,10 @@
 # HANDOFF — working state
 
-**STATUS: COMPLETE (2026-07-06).** All 7 research docs written/critiqued/revised (Opus subagents, workflow `wf_af8d7aa8-0be`, 21 agents, 0 errors), all 7 plan docs written and reconciled against research findings, README finalized, everything pushed to `DoubleJumped/capital-project-cost-agent` (public). Natural next steps when the project kicks off for real: Phase 0 data reconnaissance per `plan/06` §1.
+**STATUS: COMPLETE + REVISED (2026-07-06).** All 7 research docs written/critiqued/revised (Opus subagents, workflow `wf_af8d7aa8-0be`, 21 agents, 0 errors), all 7 plan docs written and reconciled against research findings, README finalized, everything pushed to `DoubleJumped/capital-project-cost-agent` (public).
+
+**Revision pass (later same day):** a full end-to-end review traced every plan recommendation back to the research and fixed what didn't follow through — (1) estimate-growth uplift removed from range assembly (double-counted against actuals-anchored analogs; now scoped to challenging user estimates + a narrow scope-maturity correction, `plan/04` §4); (2) era demoted from hard filter to soft penalty + caliper, with the residual regime-break adjustment made explicit (`plan/04` §2-§3); (3) Monte Carlo roll-up specified for decomposition mode with a global-conformal floor; (4) raw-RAG agent added as baseline (d) — it tests the central curation hypothesis (`plan/05` §1); (5) backtest compute-mitigation protocol added (cheap surrogate for iteration, LLM-analog LOO at release gates, L3-prose leakage proviso, `plan/05` §1); (6) Phase 0 now measures the original-early-estimate recording rate (`plan/06` §1); (7) external sanity anchors (FERC Form 2/EIA/RSMeans) added to the stack and wired into the challenge pass; (8) GBT-deviation from `research/07` recorded in ledger #2; (9) baseline lettering deconflicted between `plan/01` and `plan/05`. Then **`plan/07-phase-0-playbook.md`** was written (Opus subagent): the day-one execution guide. A second Opus subagent ran an adversarial coherence pass over the revised plan; all 6 of its findings were applied.
+
+Natural next step when the project kicks off for real: execute `plan/07` (Phase 0 playbook).
 
 **Purpose of this file:** if the session ends partway, a new agent (or Graeme at work) reads this to know exactly where things stand and what to do next.
 

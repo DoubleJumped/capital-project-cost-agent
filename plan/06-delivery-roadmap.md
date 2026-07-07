@@ -5,8 +5,9 @@
 ## 1. Phasing — each phase ships standalone value
 
 ### Phase 0 — Data reconnaissance (2-3 weeks)
-Inventory the 200 projects (`plan/02` §2.1). Output: the *inventory reality report* — artifact coverage, format census, completeness distribution, parser bake-off on the 5 ugliest cost reports.
-**Exit criteria:** we know how many projects have (scope + final cost), and leadership has seen the real coverage numbers. **Kill/reshape signal:** if <100 projects have usable actuals, the statistical layers shrink and the design tilts further toward qualitative comparables — decided here, not discovered in month six.
+Inventory the 200 projects (`plan/02` §2.1). Output: the *inventory reality report* — artifact coverage, format census, completeness distribution, parser bake-off on the 5 ugliest cost reports, and — critically — the **original-early-estimate recording rate**: for how many projects is the organization's own early estimate (and its class/date) actually on record? The headline business-case chart (`plan/05` §1 baseline (c): agent vs. actuals vs. the org's own early estimates) depends entirely on this field existing; if it's recorded for only a small fraction of projects, that comparison shrinks to an anecdote and the pitch must lean on baselines (a)/(b)/(d) instead — a framing decision to make in week 3, not month 6.
+**Exit criteria:** we know how many projects have (scope + final cost), the original-estimate recording rate is measured, and leadership has seen the real coverage numbers. **Kill/reshape signal:** if <100 projects have usable actuals, the statistical layers shrink and the design tilts further toward qualitative comparables — decided here, not discovered in month six.
+Execution detail — the day-by-day schedule, day-1 access requests, registry schema, parser bake-off rubric, estimator interview guide, and reality-report template — is in **`plan/07` (Phase 0 playbook)**.
 
 ### Phase 1 — The spine, thin (4-6 weeks)
 Pick **one asset class** with the best data density (likely stations or a pipeline program). Run the full pipeline for those ~30-60 projects: parse → extract → normalize → validate → dossiers + first L3 asset-class page. Build the L1 database and the five KB access tools (`plan/03` §5).
@@ -37,6 +38,7 @@ New actuals loop (`plan/05` §4), quarterly review board, accuracy dashboard, mo
 | Agent runtime | Thin custom orchestrator on the model provider's native tool-use API (Anthropic-style tools / MCP for the KB interfaces) | The `plan/04` flow is a fixed 6-stage workflow — owning ~1k lines beats inheriting a framework's churn; MCP keeps KB tools reusable from other clients (incl. desktop agents) |
 | UI | Chat + memo viewer: Streamlit/Next.js thin client; memos as markdown/PDF | The memo is the product; the UI is a delivery vehicle |
 | Eval | pytest-style golden suite + backtest scripts in the same repo; results as versioned artifacts | Eval is code, versioned with methodology |
+| External sanity anchors | FERC Form 2 (regulated gas plant costs), EIA pipeline construction-cost data; RSMeans/Gordian for commodity line items | Cheap outside-baseline cross-checks so the corpus's own unit costs are never the only reference (`research/07` §5.7); not a substitute for the internal CERs |
 
 ## 3. Consolidated tradeoff ledger
 
@@ -45,7 +47,7 @@ Decisions argued in earlier docs, gathered with their one-line verdicts:
 | # | Decision | Options | Verdict | Where argued |
 |---|---|---|---|---|
 | 1 | Memory substrate | Curated wiki + DB **vs** raw RAG **vs** GraphRAG **vs** fine-tune | Curated wiki + structured DB; RAG demoted to fallback; GraphRAG & fine-tune rejected at this n | `plan/03` §2 |
-| 2 | Estimation core | LLM-direct guess **vs** pure ML regression **vs** analog+parametric hybrid with LLM adjustment | Hybrid: code does math, LLM selects/adjusts/explains | `plan/04` §0,§4 |
+| 2 | Estimation core | LLM-direct guess **vs** pure ML regression **vs** analog+parametric hybrid with LLM adjustment | Hybrid: code does math, LLM selects/adjusts/explains. Deliberate deviation from `research/07`'s GBT+SHAP backbone: at per-class n of 10–30, gradient-boosted ensembles overfit; robust unit-cost regression/quantiles is the defensible parametric layer (`research/04` impl. 5). Revisit GBTs only if pooled cross-class CERs prove useful | `plan/04` §0,§4 |
 | 3 | Agent freedom | Free chat agent **vs** fixed-skeleton workflow with agentic stages | Fixed skeleton — consistency & testability beat flexibility for institutional estimates | `plan/04` §0 |
 | 4 | Similarity | Learned embedding-only **vs** hand-weighted mixed-attribute + text embedding + agent curation | The latter; weights backtest-tuned; no opaque single score | `plan/04` §2, `research/05` |
 | 5 | Ranges | LLM-verbalized confidence **vs** backtest-calibrated (conformal-style) intervals | Calibrated intervals; LLM never states unmeasured confidence | `plan/05` §2, `research/06` |

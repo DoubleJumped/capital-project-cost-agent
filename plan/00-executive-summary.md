@@ -15,7 +15,7 @@ An **estimating assistant with institutional memory**. An engineer or PM describ
 ## Why this shape (the short version of the tradeoff ledger, `plan/06` §3)
 
 - **Not fine-tuning, not GraphRAG, not a vector-store-only RAG bot**: at n=200, a reviewed curation pass costs weeks and yields an asset that is auditable and independently valuable; the rejected options are each weaker on provenance, aggregates, or maintainability (full arguments in `plan/03` §2).
-- **Not a pure ML cost model**: 200 projects, sliced by asset class, is small-data; published construction-ML results at this n support ensembles over structured features at best (`research/07`) — which is exactly our parametric *cross-check*, not the headline method. The analog method with transparent adjustment matches how estimators already think, which is the adoption battle half-won.
+- **Not a pure ML cost model**: 200 projects, sliced by asset class, is small-data; published construction-ML results at this n support ensembles over structured features at best (`research/07`), and at our per-class n of 10–30 even those overfit — so the parametric *cross-check* is robust unit-cost regression/quantiles (the deviation is recorded in the tradeoff ledger, `plan/06` §3 #2), and it is a cross-check, not the headline method. The analog method with transparent adjustment matches how estimators already think, which is the adoption battle half-won.
 - **Not autonomous**: the output is a document a human owns. The tool's job is to make the best estimator-style argument the corpus supports, visibly.
 
 ## The path (full detail `plan/06`)
@@ -24,5 +24,5 @@ An **estimating assistant with institutional memory**. An engineer or PM describ
 
 ## Reading order
 
-- `plan/01` problem frame → `plan/02` corpus pipeline → `plan/03` knowledge base → `plan/04` agent flow → `plan/05` eval & learning → `plan/06` roadmap/stack/risks.
+- `plan/01` problem frame → `plan/02` corpus pipeline → `plan/03` knowledge base → `plan/04` agent flow → `plan/05` eval & learning → `plan/06` roadmap/stack/risks → `plan/07` Phase 0 playbook (the day-one execution guide).
 - `research/01-07` — the SOTA research base behind these choices (agent memory, RAG/extraction, LLM+CBR, cost-engineering practice, similarity, uncertainty, prior art), each with cited sources.

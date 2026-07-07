@@ -52,7 +52,7 @@ Known hazards, each addressed later in the plan:
 
 ## 5. What "good" looks like (success criteria)
 
-1. **Backtest accuracy**: on held-out historical projects (leave-one-out), the agent's P10-P90 range contains the actual final cost at the promised rate (calibration), and median absolute error beats (a) naive class-average $/unit and (b) the organization's *original* early estimates for those projects, where recorded. The second comparison is the persuasive one.
+1. **Backtest accuracy**: on held-out historical projects (leave-one-out), the agent's P10-P90 range contains the actual final cost at the promised rate (calibration), and median absolute error beats both naive class-average $/unit and the organization's *original* early estimates for those projects, where recorded (the full baseline set — including a no-LLM k-NN and a raw-RAG bot — is enumerated in `plan/05` §1). The comparison against the org's own early estimates is the persuasive one.
 2. **Retrieval quality**: estimators agree the top-5 comparables are the right ones (spot-checked panel review) ≥80% of the time.
 3. **Traceability**: 100% of quantitative claims in an output link to a source project/document.
 4. **Time**: comparable search + first range in minutes, vs. days of asking around.
